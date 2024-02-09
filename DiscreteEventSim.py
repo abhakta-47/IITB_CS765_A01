@@ -3,6 +3,7 @@ from queue import PriorityQueue
 from datetime import datetime, timedelta
 import logging
 import threading
+from time import sleep
 
 from config import EVENT_QUEUE_TIMEOUT
 
@@ -38,39 +39,43 @@ class Event:
         return format(round(self.actionable_at), ",")
 
     def __repr__(self) -> str:
-        return f"Event:{self.type} desc:{self.meta_description} @{self.actionable_at_formatted} payload:{self.payload} desc:{self.meta_description}"
+        return f"Event:{self.type} @{self.actionable_at_formatted}"
 
 
 class Simulation:
     def __init__(self):
         self.clock = 0.0
         self.event_queue = PriorityQueue()
-        self.timeout_timer = threading.Timer(EVENT_QUEUE_TIMEOUT, self.dequeue)
+        self.timeout_timer = threading.Timer(EVENT_QUEUE_TIMEOUT, self.__dequeue_timer)
+        self.is_running = False
 
     def __dequeue_timer(self):
+        if not self.is_running:
+            return
         self.timeout_timer.cancel()
-        self.timeout_timer = threading.Timer(EVENT_QUEUE_TIMEOUT, self.dequeue)
+        self.timeout_timer = threading.Timer(EVENT_QUEUE_TIMEOUT, self.__dequeue_timer)
         self.timeout_timer.start()
+        self.dequeue()
+    
+    def run(self):
+        self.is_running = True
+        self.__dequeue_timer()
 
     def enqueue(self, event):
-        # Add event to the queue and sort by actionable_at
-        # logger.debug(f"Enqueuing: {event}")
         self.event_queue.put(event)
-        logger.debug(f"\nScheduled {event}")
+        # logger.debug("\nScheduled: %s", event)
         # logger.info(f"Event payload: {event.payload}\n")
-        # start dequeue timer
-        self.__dequeue_timer()
+        if self.is_running:
+            # sleep(1)
+            self.__dequeue_timer()
 
     def dequeue(self):
         while not self.event_queue.empty():
             next_event = self.event_queue.get()
             self.clock = next_event.actionable_at
-            logger.debug(
-                f"\nRunning {next_event}")
-            # Take action on the event (you may need to define appropriate actions)
+            # logger.debug("\nRunning: %s", next_event)
             next_event.action(*next_event.payload)
-            # Update the clock to the time of the dequeued event
-            # self.clock = next_event.actionable_at
+            # sleep(5)
 
     def __del__(self):
         self.timeout_timer.cancel()

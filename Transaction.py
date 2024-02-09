@@ -20,4 +20,4 @@ class Transaction:
         return self.__repr__()
 
     def __repr__(self) -> str:
-        return (f"TxID: {self.txn_id}, from: {self.from_id}, to: {self.to_id}, amount: {self.amount}, timestamp: {self.timestamp}")
+        return (f"Transaction(id:{self.txn_id}, from:{self.from_id}, to:{self.to_id}, :{self.amount}, 󰔛:{self.timestamp})")

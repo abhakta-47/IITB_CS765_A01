@@ -11,8 +11,8 @@ def generate_random_id(length=4):
     
     return random_id
 
-def expon_distribution(mean):
+def expon_distribution(mean: float):
     '''
     Generate a random number from exponential distribution with given mean
     '''
-    return -1/mean * np.log(np.random.rand())
+    return np.random.exponential(mean)

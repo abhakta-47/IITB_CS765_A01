@@ -40,11 +40,11 @@ def calculate_low_cpu_power(num_peers: int, z1: float):
     neu = 1
     return (neu/deno)
 
-
 def create_network(n: int):
     peers = [Peer(id=i, is_slow_network=False, is_slow_cpu=False)
              for i in range(n)]
-
+    for peer in peers:
+        peer.init_blockchain(peers=peers)
     slow_net_peers = random.sample(peers, int(n * config.Z0))
     for peer in slow_net_peers:
         peer.is_slow_network = True
