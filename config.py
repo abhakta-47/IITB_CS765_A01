@@ -1,5 +1,8 @@
 NUMBER_OF_PEERS = 10
+Z0 = 0.0  # network z0 is slow
+Z1 = 0.0  # cpu z1 is slow
 
 RATE_PARAMETER = 0.1
 INITIAL_COINS = 100
 EVENT_QUEUE_TIMEOUT = 1
+BLOCK_GEN_TRXN_THRESHOLD = 1

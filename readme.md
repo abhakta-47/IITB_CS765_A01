@@ -1,3 +1,8 @@
+# ToDos
+- [ ] basic event simulation
+- [ ] basic classes for peer, transaction, blocks
+- [ ] interactivity between classes
+
 # Architecture
 
 ## Event Simulation
