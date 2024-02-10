@@ -20,18 +20,24 @@ class Block:
         self.transactions: list[Transaction] = transactions
         self.timestamp: float = timestamp
 
-        self.prev_block_hash = hash(prev_block)
+        self.prev_block_hash = hash(prev_block) if prev_block else None
 
     @property
     def header(self) -> str:
-        if len(self.transactions) == 0:
+        if self.block_id == 0:
             return hash("genesis block")
-        transaction_ids = reduce(
-            lambda a, b: a+b, map(lambda x: x.txn_id, self.transactions))
+        if self.transactions == []:
+            transaction_ids = "no transactions"
+        else:
+            transaction_ids = reduce(
+                lambda a, b: a+b, map(lambda x: x.txn_id, self.transactions))
         return f"{self.block_id}-{self.prev_block_hash}-{self.timestamp}-{transaction_ids}"
 
     def __hash__(self) -> int:
         return hash(self.header)
+
+    def __str__(self) -> str:
+        return f"Block(id:{self.block_id} 󰔛:{self.timestamp} prev_hash:{self.prev_block_hash} txns:{self.transactions})"
 
     def __repr__(self) -> str:
         return f"Block({self.block_id} 󰔛:{self.timestamp})"
@@ -45,6 +51,18 @@ class Block:
         size in kB
         '''
         return len(self.transactions)+1
+
+
+def gen_genesis_block():
+    '''
+    Generate genesis block
+    '''
+    genesis_block = Block(None, [], 0)
+    genesis_block.block_id = 0
+    return genesis_block
+
+
+GENESIS_BLOCK = gen_genesis_block()
 
 
 class BlockChain:
@@ -68,8 +86,7 @@ class BlockChain:
         self.__init_genesis_block(peers)
 
     def __init_genesis_block(self, peers: list[Any]):
-        genesis_block = Block(None, [], 0)
-        genesis_block.block_id = 0
+        genesis_block = GENESIS_BLOCK
         self.__blocks.append(genesis_block)
         self.__longest_chain_length = 1
         self.__longest_chain_leaf = genesis_block
@@ -79,6 +96,7 @@ class BlockChain:
         for peer in peers:
             self.__branch_balances[genesis_block].update(
                 {peer: config.INITIAL_COINS})
+        logger.debug(f"Genesis block {genesis_block}")
 
     def __validate_block(self, block: Block) -> bool:
         '''
@@ -99,11 +117,7 @@ class BlockChain:
         '''
         1. no balance of any peer shouldn't go negative
         '''
-        try:
-            balances_upto_block = self.__branch_balances[prev_block]
-        except Exception as e:
-            # logger.debug(f"prev:{prev_block}; blanances:{self.__branch_balances}")
-            exit(1)
+        balances_upto_block = self.__branch_balances[prev_block]
         if balances_upto_block[transaction.from_id] < transaction.amount:
             # logger.debug(f"Transaction {transaction} is invalid")
             return False
