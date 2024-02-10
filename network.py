@@ -40,6 +40,7 @@ def calculate_low_cpu_power(num_peers: int, z1: float):
     neu = 1
     return (neu/deno)
 
+
 def create_network(n: int):
     peers = [Peer(id=i, is_slow_network=False, is_slow_cpu=False)
              for i in range(n)]

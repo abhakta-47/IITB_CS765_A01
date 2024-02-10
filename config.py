@@ -1,7 +1,7 @@
-NUMBER_OF_PEERS = 10
-Z0 = 0.0  # network z0 is slow
-Z1 = 0.0  # cpu z1 is slow
-NUMBER_OF_TRANSACTIONS = 100
+NUMBER_OF_PEERS = 50
+Z0 = 0.3  # network z0 is slow
+Z1 = 0.4  # cpu z1 is slow
+NUMBER_OF_TRANSACTIONS = 20*NUMBER_OF_PEERS
 
 RATE_PARAMETER = 0.1
 INITIAL_COINS = 100

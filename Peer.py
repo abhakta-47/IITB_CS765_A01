@@ -40,7 +40,6 @@ class Link:
         return hash((self.peer1, self.peer2))
 
 
-
 class Peer:
 
     def __init__(self, id, is_slow_network=False, is_slow_cpu=False):
@@ -53,12 +52,10 @@ class Peer:
 
         self.forwarded_messages: list[Union[Transaction, Block]] = []
 
-
     def init_blockchain(self, peers: list["Peer"]):
         self.block_chain = BlockChain(cpu_power=self.cpu_power,
                                       broadcast_block_function=self.broadcast_block,
                                       peers=peers)
-
 
     def connect(self, peer: "Peer", link: Link):
         # self.connected_peers.append(peer)
@@ -67,6 +64,9 @@ class Peer:
     def disconnect(self, peer):
         # self.connected_peers.remove(peer)
         self.neighbours.pop(peer)
+
+    def __str__(self) -> str:
+        return f"Peer(id={self.id} cpu_power={self.cpu_power} is_slow_network={self.is_slow_network} is_slow_cpu={self.is_slow_cpu})"
 
     def __repr__(self):
         return f"Peer(id={self.id})"
@@ -80,14 +80,14 @@ class Peer:
         amount = random.uniform(0, self.crypto_coins)
         self.crypto_coins -= amount
         return Transaction(self, to_peer, amount, timestamp)
-    
+
     def broadcast_msg(self, msg: Union[Transaction, Block]):
         '''
         Broadcast a message to all connected peers.
         '''
         for peer in self.connected_peers:
             self.__forward_msg_to_peers(msg, peer)
-    
+
     def __forward_msg_to_peers(self, msg: Union[Transaction, Block], peers: list["Peer"]):
         '''
         Forward a message to given peers.
@@ -100,7 +100,8 @@ class Peer:
         Transmit a message to a peer.
         '''
         delay = self.neighbours[peer].get_delay(msg)
-        event_type = "receive_txn" if isinstance(msg, Transaction) else "receive_block"
+        event_type = "receive_txn" if isinstance(
+            msg, Transaction) else "receive_block"
         new_event = Event(event_type, simulation.clock,
                           delay, peer.receive_msg, (msg, self), f"{self.id}->{peer.id}*; Δ:{delay}ms")
         simulation.enqueue(new_event)
@@ -109,7 +110,8 @@ class Peer:
         '''
         Forward a message to given peer.
         '''
-        event_type = "send_txn" if isinstance(msg, Transaction) else "send_block"
+        event_type = "send_txn" if isinstance(
+            msg, Transaction) else "send_block"
         new_event = Event(event_type=event_type,
                           created_at=simulation.clock,
                           delay=0,
