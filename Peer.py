@@ -48,9 +48,17 @@ class Peer:
         self.is_slow_cpu: float = is_slow_cpu
         self.crypto_coins: int = INITIAL_COINS
         self.neighbours: dict["Peer", Link] = {}
-        self.cpu_power: float = 0
+        self.cpu_power: float = self.__calculate_cpu_power()
 
         self.forwarded_messages: list[Union[Transaction, Block]] = []
+
+    def __calculate_cpu_power(self) -> float:
+        num_peers = config.NUMBER_OF_PEERS
+        z1 = config.Z1
+        deno = (10-9*z1)*num_peers
+        neu = 1
+        low_cpu_power = (neu/deno)
+        return low_cpu_power if self.is_slow_cpu else 10*low_cpu_power
 
     def init_blockchain(self, peers: list["Peer"]):
         self.block_chain = BlockChain(cpu_power=self.cpu_power,

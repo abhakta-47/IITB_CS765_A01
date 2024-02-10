@@ -35,31 +35,19 @@ def draw_graph(peers):
     plt.show()
 
 
-def calculate_low_cpu_power(num_peers: int, z1: float):
-    deno = (10-9*z1)*num_peers
-    neu = 1
-    return (neu/deno)
-
-
 def create_network(n: int):
-    peers = [Peer(id=i, is_slow_network=False, is_slow_cpu=False)
+    is_slow_nets = [False] * n
+    is_slow_cpus = [False] * n
+    for i in random.sample(list(range(n)), round(n*config.Z0)):
+        is_slow_nets[i] = True
+    for i in random.sample(list(range(n)), round(n*config.Z1)):
+        is_slow_cpus[i] = True
+
+    peers = [Peer(id=i, is_slow_network=is_slow_nets[i], is_slow_cpu=is_slow_cpus[i])
              for i in range(n)]
+
     for peer in peers:
         peer.init_blockchain(peers=peers)
-    slow_net_peers = random.sample(peers, int(n * config.Z0))
-    for peer in slow_net_peers:
-        peer.is_slow_network = True
-
-    slow_cpu_peers = random.sample(peers, int(n * config.Z1))
-    low_cpu_power = calculate_low_cpu_power(n, config.Z1)
-    high_cpu_power = 10*low_cpu_power
-    for peer in slow_cpu_peers:
-        peer.is_slow_cpu = True
-    for peer in peers:
-        if peer.is_slow_cpu:
-            peer.cpu_power = low_cpu_power
-        else:
-            peer.cpu_power = high_cpu_power
 
     for peer in peers:
         # choose random number of neighbours
