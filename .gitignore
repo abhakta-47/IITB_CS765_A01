@@ -2,3 +2,5 @@ __pycache__/
 venv/
 
 blockchain_simulation.log
+results.json
+results.yaml

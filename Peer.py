@@ -39,6 +39,13 @@ class Link:
     def __hash__(self):
         return hash((self.peer1, self.peer2))
 
+    @property
+    def __dict__(self) -> dict:
+        return {
+            "pij": self.pij,
+            "cij": self.cij
+        }
+
 
 class Peer:
 
@@ -73,6 +80,18 @@ class Peer:
     def disconnect(self, peer):
         # self.connected_peers.remove(peer)
         self.neighbours.pop(peer)
+
+    @property
+    def __dict__(self) -> dict:
+        return ({
+            "id": self.id,
+            "cpu_power": self.cpu_power,
+            "is_slow_network": self.is_slow_network,
+            "is_slow_cpu": self.is_slow_cpu,
+            "crypto_coins": self.crypto_coins,
+            "neighbours": [{neighbour.__repr__(): (self.neighbours[neighbour]).__dict__} for neighbour in self.neighbours],
+            "block_chain": self.block_chain.__dict__,
+        })
 
     def __str__(self) -> str:
         return f"Peer(id={self.id} cpu_power={self.cpu_power} is_slow_network={self.is_slow_network} is_slow_cpu={self.is_slow_cpu})"

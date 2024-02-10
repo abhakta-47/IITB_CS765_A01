@@ -40,7 +40,25 @@ class Block:
         return f"Block(id:{self.block_id} 󰔛:{self.timestamp} prev_hash:{self.prev_block_hash} txns:{self.transactions})"
 
     def __repr__(self) -> str:
-        return f"Block({self.block_id} 󰔛:{self.timestamp})"
+        return f"Block(id={self.block_id})"
+
+    @property
+    def __dict__(self) -> dict:
+        dict_obj = {
+            "self": self.__repr__(),
+            "block_id": self.block_id,
+            "prev_block": "",
+            "self_hash": self.__hash__(),
+            "transactions": list(map(lambda x: x.__dict__, self.transactions)),
+            "timestamp": self.timestamp,
+            "prev_block_hash": self.prev_block_hash
+        }
+        if self.prev_block:
+            dict_obj["prev_block"] = {
+                "id": self.prev_block.block_id,
+                "hash": self.prev_block.__repr__()
+            },
+        return dict_obj
 
     # def __str__(self) -> str:
     #     return f"Block id:{self.block_id} 󰔛:{self.timestamp} prev_hash:{self.prev_block_hash} txns:{self.transactions}"
@@ -85,6 +103,17 @@ class BlockChain:
         self.cpu_power: float = cpu_power
 
         self.__init_genesis_block(peers)
+
+    @property
+    def __dict__(self) -> dict:
+        return {
+            "blocks": list(map(lambda x: x.__dict__, self.__blocks)),
+            "block_arrival_time": list(map(lambda x: {x.__repr__(): self.__block_arrival_time[x]}, self.__block_arrival_time)),
+            "longest_chain_length": self.__longest_chain_length,
+            "longest_chain_leaf": self.__longest_chain_leaf.__repr__(),
+            "avg_interval_time": self.avg_interval_time,
+            "cpu_power": self.cpu_power
+        }
 
     def __init_genesis_block(self, peers: list[Any]):
         genesis_block = GENESIS_BLOCK

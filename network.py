@@ -35,7 +35,7 @@ def draw_graph(peers):
     plt.show()
 
 
-def create_network(n: int):
+def create_network(n: int) -> list[Peer]:
     is_slow_nets = [False] * n
     is_slow_cpus = [False] * n
     for i in random.sample(list(range(n)), round(n*config.Z0)):
@@ -62,4 +62,7 @@ def create_network(n: int):
                 peer.connect(peer=neighbour, link=link)
                 # add peer to neighbour
                 neighbour.connect(peer=peer, link=link)
-    return peers
+    if is_connected(peers):
+        return peers
+    else:
+        return create_network(n)

@@ -1,6 +1,6 @@
 NUMBER_OF_PEERS = 10
 Z0 = 0.3  # network z0 is slow
-Z1 = 0.9  # cpu z1 is slow
+Z1 = 0.2  # cpu z1 is slow
 NUMBER_OF_TRANSACTIONS = 2*NUMBER_OF_PEERS
 
 RATE_PARAMETER = 0.1
