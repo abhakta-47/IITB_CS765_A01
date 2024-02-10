@@ -22,6 +22,8 @@ class Block:
 
         self.prev_block_hash = hash(prev_block) if prev_block else None
 
+        logger.info(f"{self} <block_created> {self.description()}")
+
     @property
     def header(self) -> str:
         if self.block_id == 0:
@@ -36,7 +38,7 @@ class Block:
     def __hash__(self) -> int:
         return hash(self.header)
 
-    def __str__(self) -> str:
+    def description(self) -> str:
         return f"Block(id:{self.block_id} 󰔛:{self.timestamp} prev_hash:{self.prev_block_hash} txns:{self.transactions})"
 
     def __repr__(self) -> str:
@@ -49,7 +51,7 @@ class Block:
             "block_id": self.block_id,
             "prev_block": "",
             "self_hash": self.__hash__(),
-            "transactions": list(map(lambda x: x.__dict__, self.transactions)),
+            "transactions": sorted(list(map(lambda x: x.__dict__, self.transactions)), key=lambda x: x["txn_id"]),
             "timestamp": self.timestamp,
             "prev_block_hash": self.prev_block_hash
         }
@@ -60,8 +62,11 @@ class Block:
             },
         return dict_obj
 
-    # def __str__(self) -> str:
-    #     return f"Block id:{self.block_id} 󰔛:{self.timestamp} prev_hash:{self.prev_block_hash} txns:{self.transactions}"
+    def description(self) -> str:
+        '''
+        detailed description of block
+        '''
+        return f"Block id:{self.block_id} 󰔛:{self.timestamp} prev_hash:{self.prev_block_hash} txns:{self.transactions}"
 
     @property
     def size(self) -> int:
@@ -106,9 +111,15 @@ class BlockChain:
 
     @property
     def __dict__(self) -> dict:
+        blocks = list(map(lambda x: x.__dict__, self.__blocks))
+        blocks = sorted(blocks, key=lambda x: x["block_id"])
+        block_arrival_times = list(map(lambda x: {x.__repr__(
+        ): self.__block_arrival_time[x]}, self.__block_arrival_time))
+        block_arrival_times = sorted(
+            block_arrival_times, key=lambda x: list(x.values())[0])
         return {
-            "blocks": list(map(lambda x: x.__dict__, self.__blocks)),
-            "block_arrival_time": list(map(lambda x: {x.__repr__(): self.__block_arrival_time[x]}, self.__block_arrival_time)),
+            "blocks": blocks,
+            "block_arrival_time": block_arrival_times,
             "longest_chain_length": self.__longest_chain_length,
             "longest_chain_leaf": self.__longest_chain_leaf.__repr__(),
             "avg_interval_time": self.avg_interval_time,
@@ -203,6 +214,7 @@ class BlockChain:
             return False
 
         self.__blocks.append(block)
+        logger.debug(f"{self.__peer_id} <block_added> {block}")
         self.__update_chain_length(block)
         self.__update_balances(block)
         self.__update_branch_transactions(block)
@@ -220,8 +232,8 @@ class BlockChain:
 
         chain_len_upto_block = self.__branch_lengths[block]
         if chain_len_upto_block > self.__longest_chain_length:
-            logger.debug("(%s) <longest_chain> %s %s generating new block !!",
-                         self.__peer_id.__repr__(),
+            logger.debug("%s <longest_chain> %s %s generating new block !!",
+                         self.__peer_id,
                          str(self.__longest_chain_length), str(chain_len_upto_block))
             self.__longest_chain_length = chain_len_upto_block
             self.__longest_chain_leaf = block
@@ -244,13 +256,13 @@ class BlockChain:
         if block.prev_block == self.__longest_chain_leaf:
             self.__add_block(block)
             logger.debug(
-                f"{self.__peer_id.__repr__()} <mining_successful> broadcasting block {block}")
+                f"{self.__peer_id} <mining_successful> {block}")
             self.__broadcast_block(block)
             return
         for transaction in block.transactions:
             self.__new_transactions.append(transaction)
         logger.debug(
-            f"{self.__peer_id.__repr__()} <mining_failed> block {block} not broadcasted")
+            f"{self.__peer_id} <mining_failed> {block}")
 
     def mine_block(self) -> Block:
         '''

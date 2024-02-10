@@ -1,4 +1,7 @@
 from utils import generate_random_id
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Transaction:
@@ -10,6 +13,8 @@ class Transaction:
         self.timestamp: float = timestamp
         self.size: int = 1  # KB
 
+        logger.debug(f"{self} <txn_created>: {self.description()}")
+
     @property
     def __dict__(self) -> dict:
         return {
@@ -20,8 +25,8 @@ class Transaction:
             "timestamp": self.timestamp
         }
 
-    def __str__(self) -> str:
-        return self.__repr__()
+    def description(self) -> str:
+        return (f"Transaction(id:{self.txn_id}, from:{(self.from_id)}, to:{(self.to_id)}, :{self.amount}, 󰔛:{self.timestamp})")
 
     def __repr__(self) -> str:
-        return (f"Transaction(id:{self.txn_id}, from:{(self.from_id).__repr__()}, to:{(self.to_id).__repr__()}, :{self.amount}, 󰔛:{self.timestamp})")
+        return f"Txn(id={self.txn_id})"

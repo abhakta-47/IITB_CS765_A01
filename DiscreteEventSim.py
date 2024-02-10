@@ -51,7 +51,7 @@ class Simulation:
 
     def __enqueue(self, event):
         self.event_queue.put(event)
-        logger.debug("Scheduled: %s", event)
+        # logger.debug("Scheduled: %s", event)
         # logger.info(f"Event payload: {event.payload}\n")
 
     def enqueue(self, event):
