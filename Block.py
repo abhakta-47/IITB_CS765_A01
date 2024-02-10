@@ -62,7 +62,7 @@ class BlockChain:
         self.__branch_balances: dict[Block, dict[Any, int]] = {}
         self.__branch_transactions: dict[Block, list[Transaction]] = {}
 
-        self.avg_interval_time = 600
+        self.avg_interval_time = config.INITIAL_AVG_INTERVAL_TIME
         self.cpu_power: float = cpu_power
 
         self.__init_genesis_block(peers)
@@ -111,20 +111,15 @@ class BlockChain:
         # logger.debug(f"Transaction {transaction} is valid")
         return True
 
-    def __add_block(self, block: Block) -> bool:
-        '''
-        Add a block to the chain
-        '''
+    def __update_chain_length(self, block: Block):
         prev_block = block.prev_block
-        if prev_block not in self.__blocks:
-            return False
-        self.__blocks.append(block)
-
         chain_len_upto_block = self.__branch_lengths[prev_block] + 1
         self.__branch_lengths[block] = chain_len_upto_block
         # self.__branch_lengths.pop(prev_block)
         # logger.debug(f"Chain length upto block {block} is {chain_len_upto_block}")
 
+    def __update_balances(self, block: Block):
+        prev_block = block.prev_block
         balances_upto_block = self.__branch_balances[prev_block].copy()
         for transaction in block.transactions:
             balances_upto_block[transaction.from_id] -= transaction.amount
@@ -133,6 +128,8 @@ class BlockChain:
         # self.__branch_balances.pop(prev_block)
         # logger.debug(f"Balances upto block {block} are {balances_upto_block}")
 
+    def __update_branch_transactions(self, block: Block):
+        prev_block = block.prev_block
         self.__branch_transactions[block] = []
         for transaction in block.transactions:
             self.__branch_transactions[block].append(transaction)
@@ -140,7 +137,33 @@ class BlockChain:
             self.__branch_transactions[block].append(transaction)
         # self.__branch_transactions.pop(prev_block)
 
+    def __update_avg_interval_time(self, block: Block):
+        prev_block = block.prev_block
+        num_blocks = len(self.__blocks)
+        if num_blocks == 1:
+            return
+        interval_time = block.timestamp - prev_block.timestamp
+        self.avg_interval_time = (
+            self.avg_interval_time * (num_blocks-1) + interval_time) / num_blocks
+        logger.debug("Avg interval updated %s", self.avg_interval_time)
+
+    def __update_block_arrival_time(self, block: Block):
         self.__block_arrival_time[block] = simulation.clock
+
+    def __add_block(self, block: Block) -> bool:
+        '''
+        Add a block to the chain
+        '''
+        prev_block = block.prev_block
+        if prev_block not in self.__blocks:
+            return False
+
+        self.__blocks.append(block)
+        self.__update_chain_length(block)
+        self.__update_balances(block)
+        self.__update_branch_transactions(block)
+        self.__update_block_arrival_time(block)
+        self.__update_avg_interval_time(block)
 
     def add_block(self, block: Block) -> bool:
         '''
@@ -150,11 +173,6 @@ class BlockChain:
             return False
 
         self.__add_block(block)
-
-        # num_blocks = len(self.__blocks)
-        # interval_time = block.timestamp - prev_block.timestamp
-        # self.avg_interval_time = (self.avg_interval_time * (num_blocks-1) + interval_time) / num_blocks
-        # logger.debug(f"Average interval time is {self.avg_interval_time}")
 
         chain_len_upto_block = self.__branch_lengths[block]
         if chain_len_upto_block > self.__longest_chain_length:
@@ -202,7 +220,6 @@ class BlockChain:
 
         new_block = Block(self.__longest_chain_leaf,
                           valid_transactions_for_longest_chain, simulation.clock)
-        logger.debug(f"{self.avg_interval_time} {self.cpu_power}")
         delay = expon_distribution(self.avg_interval_time/self.cpu_power)
 
         # self.broadcast_block(new_block)

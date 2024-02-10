@@ -18,5 +18,5 @@ def expon_distribution(mean: float):
     '''
     Generate a random number from exponential distribution with given mean
     '''
-    sample = random.expovariate(1//mean)
+    sample = random.expovariate(1/mean)
     return round(sample, 6)
