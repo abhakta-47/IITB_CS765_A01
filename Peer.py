@@ -63,7 +63,8 @@ class Peer:
     def init_blockchain(self, peers: list["Peer"]):
         self.block_chain = BlockChain(cpu_power=self.cpu_power,
                                       broadcast_block_function=self.broadcast_block,
-                                      peers=peers)
+                                      peers=peers,
+                                      owner_peer=self)
 
     def connect(self, peer: "Peer", link: Link):
         # self.connected_peers.append(peer)
@@ -110,8 +111,9 @@ class Peer:
         delay = self.neighbours[peer].get_delay(msg)
         event_type = "receive_txn" if isinstance(
             msg, Transaction) else "receive_block"
+        event_description = f"{self.id}->{peer.id}*; {msg.txn_id if isinstance(msg, Transaction) else msg.block_id }; Δ:{delay}ms"
         new_event = Event(event_type, simulation.clock,
-                          delay, peer.receive_msg, (msg, self), f"{self.id}->{peer.id}*; Δ:{delay}ms")
+                          delay, peer.receive_msg, (msg, self), event_description)
         simulation.enqueue(new_event)
 
     def __forward_msg_to_peer(self, msg: Union[Transaction, Block], peer: "Peer"):
@@ -120,12 +122,13 @@ class Peer:
         '''
         event_type = "send_txn" if isinstance(
             msg, Transaction) else "send_block"
+        event_description = f"{self.id}*->{peer.id}; {msg.txn_id if isinstance(msg, Transaction) else msg.block_id };"
         new_event = Event(event_type=event_type,
                           created_at=simulation.clock,
                           delay=0,
                           action=self.__transmit_msg,
                           payload=(msg, peer),
-                          meta_description=f"{self.id}*->{peer.id};")
+                          meta_description=event_description)
         simulation.enqueue(new_event)
 
     def receive_msg(self, msg: Union[Transaction, Block], source: "Peer"):

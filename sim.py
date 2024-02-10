@@ -10,6 +10,7 @@ from Block import Block
 
 from config import NUMBER_OF_PEERS, RATE_PARAMETER, NUMBER_OF_TRANSACTIONS
 
+
 logging.basicConfig(level=logging.DEBUG,
                     filename="blockchain_simulation.log",
                     filemode='w',
@@ -38,8 +39,9 @@ while simulation.event_queue.qsize() <= NUMBER_OF_TRANSACTIONS:
     # logger.debug(f"Interarrival time: {interarrival_time}")
     from_peer = random.choice(peers)
     new_txn = from_peer.create_txn(simulation.clock)
+    new_txn_event_description = f"{from_peer.id}->*; {new_txn.txn_id};"
     new_txn_event = Event("broadcast_transaction", time,
-                          time, from_peer.broadcast_txn, (new_txn,), f"{from_peer.id}->*")
+                          time, from_peer.broadcast_txn, (new_txn,), new_txn_event_description)
     time = time + interarrival_time
     simulation.enqueue(new_txn_event)
     # sleep(2)

@@ -67,8 +67,9 @@ GENESIS_BLOCK = gen_genesis_block()
 
 class BlockChain:
 
-    def __init__(self, cpu_power: float, broadcast_block_function: Any, peers: list[Any]):
+    def __init__(self, cpu_power: float, broadcast_block_function: Any, peers: list[Any], owner_peer: Any):
         self.__blocks: list[Block] = []
+        self.__peer_id: Any = owner_peer
         self.__new_transactions: list[Transaction] = []
         self.__block_arrival_time: dict[Block, float] = {}
         self.__broadcast_block: Any = broadcast_block_function
@@ -190,9 +191,11 @@ class BlockChain:
 
         chain_len_upto_block = self.__branch_lengths[block]
         if chain_len_upto_block > self.__longest_chain_length:
+            logger.debug("(%s) <longest_chain> %s %s generating new block !!",
+                         self.__peer_id.__repr__(),
+                         str(self.__longest_chain_length), str(chain_len_upto_block))
             self.__longest_chain_length = chain_len_upto_block
             self.__longest_chain_leaf = block
-            logger.debug(f"new longest chain. generating new block !!")
             self.mine_block()
 
     def add_transaction(self, transaction: Transaction) -> bool:
@@ -200,8 +203,9 @@ class BlockChain:
         Add a transaction to the chain
         '''
         self.__new_transactions.append(transaction)
-        if len(self.__new_transactions) > config.BLOCK_GEN_TRXN_THRESHOLD:
-            logger.debug(f"Threshold reached. generating new block !!")
+        if len(self.__new_transactions) > config.BLOCK_TXNS_MAX_THRESHHOLD:
+            logger.debug("<num_txns> New txns len %s. generating new block !!", str(
+                len(self.__new_transactions)))
             self.mine_block()
 
     def broadcast_block(self, block: Block):
@@ -210,10 +214,14 @@ class BlockChain:
         '''
         if block.prev_block == self.__longest_chain_leaf:
             self.__add_block(block)
-            logger.debug(f"mining successful. broadcasting block {block}")
+            logger.debug(
+                f"{self.__peer_id.__repr__()} <mining_successful> broadcasting block {block}")
             self.__broadcast_block(block)
             return
-        logger.debug(f"mining failed. block {block} not broadcasted")
+        for transaction in block.transactions:
+            self.__new_transactions.append(transaction)
+        logger.debug(
+            f"{self.__peer_id.__repr__()} <mining_failed> block {block} not broadcasted")
 
     def mine_block(self) -> Block:
         '''
@@ -231,6 +239,13 @@ class BlockChain:
             balances_upto_block[transaction.from_id] -= transaction.amount
             balances_upto_block[transaction.to_id] += transaction.amount
             valid_transactions_for_longest_chain.append(transaction)
+
+        if len(valid_transactions_for_longest_chain) < config.BLOCK_TXNS_MIN_THRESHHOLD:
+            logger.debug("<num_txns> not enough txns to mine a block !!",)
+            return
+
+        for transaction in valid_transactions_for_longest_chain:
+            self.__new_transactions.remove(transaction)
 
         new_block = Block(self.__longest_chain_leaf,
                           valid_transactions_for_longest_chain, simulation.clock)
