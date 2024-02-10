@@ -6,6 +6,7 @@ import threading
 from time import sleep
 
 from config import EVENT_QUEUE_TIMEOUT
+import utils as UITLS
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,7 @@ class EventType(Enum):
 
 class Event:
     def __init__(self, event_type, created_at, delay, action, payload, meta_description=""):
+        self.id = UITLS.generate_random_id(6)
         self.type = event_type  # type of the event
         self.created_at = created_at  # when it is created
         self.delay = delay
@@ -36,49 +38,43 @@ class Event:
 
     @property
     def actionable_at_formatted(self):
-        return format(round(self.actionable_at), ",")
+        return format(round(self.actionable_at, 6), ",")
 
     def __repr__(self) -> str:
-        return f"Event:{self.type} @{self.actionable_at_formatted}"
+        return f"Event({self.id} <{self.type}> @{self.actionable_at_formatted})"
 
 
 class Simulation:
     def __init__(self):
         self.clock = 0.0
         self.event_queue = PriorityQueue()
-        self.timeout_timer = threading.Timer(EVENT_QUEUE_TIMEOUT, self.__dequeue_timer)
-        self.is_running = False
 
-    def __dequeue_timer(self):
-        if not self.is_running:
-            return
-        self.timeout_timer.cancel()
-        self.timeout_timer = threading.Timer(EVENT_QUEUE_TIMEOUT, self.__dequeue_timer)
-        self.timeout_timer.start()
-        self.dequeue()
-    
-    def run(self):
-        self.is_running = True
-        self.__dequeue_timer()
+    def __enqueue(self, event):
+        self.event_queue.put(event)
+        # logger.debug("Scheduled: %s", event)
+        # logger.info(f"Event payload: {event.payload}\n")
 
     def enqueue(self, event):
-        self.event_queue.put(event)
-        # logger.debug("\nScheduled: %s", event)
-        # logger.info(f"Event payload: {event.payload}\n")
-        if self.is_running:
-            # sleep(1)
-            self.__dequeue_timer()
+        '''
+        Enqueue an event to the event queue.
+        '''
+        self.__enqueue(event)
 
-    def dequeue(self):
+    def __run(self):
         while not self.event_queue.empty():
             next_event = self.event_queue.get()
             self.clock = next_event.actionable_at
-            # logger.debug("\nRunning: %s", next_event)
+            logger.debug("Running: %s", next_event)
             next_event.action(*next_event.payload)
             # sleep(5)
 
-    def __del__(self):
-        self.timeout_timer.cancel()
+    def run(self):
+        '''
+        Start the simulation.
+        '''
+        # self.is_running = True
+        # self.__dequeue_timer()
+        self.__run()
 
 
 simulation = Simulation()
