@@ -1,6 +1,6 @@
 import string
 import random
-import numpy as np
+import os
 
 
 def generate_random_id(length=4):
@@ -20,3 +20,34 @@ def expon_distribution(mean: float):
     '''
     sample = random.expovariate(1/mean)
     return round(sample, 6)
+
+
+def create_directory(directory_path):
+    """
+    Create a directory if it does not exist.
+    """
+    if not os.path.exists(directory_path):
+        try:
+            os.makedirs(directory_path)
+        except OSError as e:
+            print('unable to create path', e)
+
+
+def change_directory(directory_path):
+    """
+    Change the current working directory to the specified path.
+    """
+    try:
+        os.chdir(directory_path)
+    except OSError as e:
+        print('unable to change directory', e)
+
+
+def copy_to_directory(src, dst):
+    """
+    Copy a file from src to dst.
+    """
+    try:
+        os.system(f'cp -r {src} {dst}')
+    except OSError as e:
+        print('unable to copy', e)

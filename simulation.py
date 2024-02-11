@@ -1,23 +1,24 @@
-from config import NUMBER_OF_PEERS, AVG_TXN_INTERVAL_TIME, NUMBER_OF_TRANSACTIONS
-import logging
 import random
-from time import sleep
 import json
-import yaml
 import pickle
+from time import time, strftime
 
-from Peer import Peer
-from network import is_connected, draw_graph, create_network
-from DiscreteEventSim import simulation, Event, EventType
-from utils import expon_distribution
-from Block import Block
 from logger import init_logger
+from network import is_connected, create_network
+from DiscreteEventSim import simulation, Event, EventType
+from utils import expon_distribution, create_directory, change_directory, copy_to_directory
+
+from config import NUMBER_OF_PEERS, AVG_TXN_INTERVAL_TIME, NUMBER_OF_TRANSACTIONS
 
 logger = init_logger()
+START_TIME = time()
+START_TIME = strftime("%Y-%m-%d_%H:%M:%S")
 
 
 def log_peers(peers):
-    # print(peers)
+    '''
+    print(peers)
+    '''
     for peer in peers:
         logger.info("peer: %s", peer)
         logger.info("peer id: %s, neighbours: %s",
@@ -52,22 +53,38 @@ def export_data(peers):
     for peer in peers:
         peers_data.append(peer.__dict__)
     raw_data['peers'] = peers_data
+
+    output_dir = f"output/{START_TIME}"
+    create_directory(output_dir)
+    copy_to_directory('blockchain_simulation.log', output_dir)
+    change_directory(output_dir)
+
     with open('results.json', 'w') as f:
         json.dump(raw_data, f, indent=4)
-    with open('results.yaml', 'w') as f:
-        yaml.dump(raw_data, f)
     with open('results.pkl', 'wb') as f:
         pickle.dump(raw_data, f)
 
 
 if __name__ == "__main__":
-    peers = create_network(NUMBER_OF_PEERS)
+    peers_network = create_network(NUMBER_OF_PEERS)
+    logger.debug("Network created")
+    print("Network created")
 
-    log_peers(peers)
-    schedule_transactions(peers)
+    log_peers(peers_network)
+    schedule_transactions(peers_network)
+    logger.debug("Transactions scheduled")
+    print("Transactions scheduled")
 
     logger.debug("Simulation started")
-    simulation.run()
-    logger.debug("Simulation ended")
-
-    export_data(peers)
+    print("Simulation started")
+    try:
+        simulation.run()
+        logger.debug("Simulation ended")
+        print("Simulation ended")
+    except KeyboardInterrupt:
+        logger.debug("Simulation interrupted")
+        print("Simulation interrupted")
+    finally:
+        export_data(peers_network)
+        logger.debug("Data exported")
+        print("Data exported")

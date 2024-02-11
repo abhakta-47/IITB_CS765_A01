@@ -12,6 +12,6 @@ def init_logger():
     logging.basicConfig(level=logging.DEBUG,
                         filename="blockchain_simulation.log",
                         filemode='w',
-                        format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s')
+                        format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s', datefmt='%H:%M:%S')
     logger = logging.getLogger(__name__)
     return logger

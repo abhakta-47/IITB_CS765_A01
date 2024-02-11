@@ -104,7 +104,7 @@ class BlockChain:
 
         self.__branch_lengths: dict[Block, int] = {}
         self.__branch_balances: dict[Block, dict[Any, int]] = {}
-        self.__branch_transactions: dict[Block, list[Transaction]] = {}
+        self.__branch_transactions: list[Transaction] = []
 
         self.avg_interval_time = config.AVG_BLOCK_MINING_TIME
         self.cpu_power: float = cpu_power
@@ -134,7 +134,6 @@ class BlockChain:
         self.__longest_chain_length = 1
         self.__longest_chain_leaf = genesis_block
         self.__branch_lengths[genesis_block] = 1
-        self.__branch_transactions[genesis_block] = []
         self.__branch_balances[genesis_block] = {}
         for peer in peers:
             self.__branch_balances[genesis_block].update(
@@ -150,7 +149,7 @@ class BlockChain:
         for transaction in block.transactions:
             if not self.__validate_transaction(transaction, prev_block):
                 return False
-            if transaction in self.__branch_transactions[prev_block]:
+            if transaction in self.__branch_transactions:
                 return False
 
         # logger.debug(f"Block {block} is valid")
@@ -186,15 +185,6 @@ class BlockChain:
         # self.__branch_balances.pop(prev_block)
         # logger.debug(f"Balances upto block {block} are {balances_upto_block}")
 
-    def __update_branch_transactions(self, block: Block):
-        prev_block = block.prev_block
-        self.__branch_transactions[block] = []
-        for transaction in block.transactions:
-            self.__branch_transactions[block].append(transaction)
-        for transaction in self.__branch_transactions[prev_block]:
-            self.__branch_transactions[block].append(transaction)
-        # self.__branch_transactions.pop(prev_block)
-
     def __update_avg_interval_time(self, block: Block):
         prev_block = block.prev_block
         num_blocks = len(self.__blocks)
@@ -217,10 +207,8 @@ class BlockChain:
             return False
 
         self.__blocks.append(block)
-        logger.debug(f"{self.__peer_id} <{EventType.BLOCK_ACCEPTED}> {block}")
         self.__update_chain_length(block)
         self.__update_balances(block)
-        self.__update_branch_transactions(block)
         self.__update_block_arrival_time(block)
         self.__update_avg_interval_time(block)
 
@@ -234,7 +222,7 @@ class BlockChain:
         self.__add_block(block)
 
         chain_len_upto_block = self.__branch_lengths[block]
-        if chain_len_upto_block > self.__longest_chain_length:
+        if chain_len_upto_block >= self.__longest_chain_length:
             logger.debug("%s <longest_chain> %s %s generating new block !!",
                          self.__peer_id,
                          str(self.__longest_chain_length), str(chain_len_upto_block))
@@ -286,8 +274,6 @@ class BlockChain:
         balances_upto_block = self.__branch_balances[self.__longest_chain_leaf].copy(
         )
         for transaction in self.__new_transactions:
-            if transaction in self.__branch_transactions[self.__longest_chain_leaf]:
-                continue
             if balances_upto_block[transaction.from_id] < transaction.amount:
                 continue
             balances_upto_block[transaction.from_id] -= transaction.amount
