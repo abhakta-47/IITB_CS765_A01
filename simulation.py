@@ -8,7 +8,7 @@ import pickle
 
 from Peer import Peer
 from network import is_connected, draw_graph, create_network
-from DiscreteEventSim import simulation, Event
+from DiscreteEventSim import simulation, Event, EventType
 from utils import expon_distribution
 from Block import Block
 from logger import init_logger
@@ -37,7 +37,7 @@ def schedule_transactions(peers):
         from_peer = random.choice(peers)
         new_txn = from_peer.create_txn(simulation.clock)
         new_txn_event_description = f"{from_peer.id}->*; {new_txn};"
-        new_txn_event = Event("broadcast_transaction", time,
+        new_txn_event = Event(EventType.TXN_BROADCAST, time,
                               time, from_peer.broadcast_txn, (new_txn,), new_txn_event_description)
         time = time + interarrival_time
         simulation.enqueue(new_txn_event)
@@ -58,11 +58,6 @@ def export_data(peers):
         yaml.dump(raw_data, f)
     with open('results.pkl', 'wb') as f:
         pickle.dump(raw_data, f)
-
-    for peer1 in peers:
-        for peer2 in peers:
-            if peer1.block_chain != peer2.block_chain:
-                logger.info("%s %s are different", peer1, peer2)
 
 
 if __name__ == "__main__":

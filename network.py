@@ -1,5 +1,6 @@
 import random
-from Peer import Peer, Link
+from Peer import Peer
+from Link import Link
 import config
 
 
@@ -7,15 +8,15 @@ def is_connected(peers: list[Peer]):
     """
     Returns True if all peers are connected to each other, False otherwise.
     """
-    is_visited = [False] * len(peers)
+    is_visited = {}
     cur_peer = peers[0]
     queue = [cur_peer]
-    is_visited[0] = True
+    is_visited[cur_peer.id] = True
     while queue:
         cur_peer = queue.pop(0)
         is_visited[cur_peer.id] = True
         for peer in cur_peer.neighbours.keys():
-            if not is_visited[peer.id]:
+            if peer.id not in is_visited:
                 queue.append(peer)
     return all(is_visited)
 

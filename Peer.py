@@ -6,10 +6,10 @@ from typing import Union
 
 from Transaction import Transaction
 from Block import Block
-from utils import expon_distribution
+from utils import expon_distribution, generate_random_id
 from Block import BlockChain
-from DiscreteEventSim import simulation, Event
-
+from DiscreteEventSim import simulation, Event, EventType
+from Link import Link
 
 from config import RATE_PARAMETER, INITIAL_COINS
 import config
@@ -17,44 +17,16 @@ import config
 logger = logging.getLogger(__name__)
 
 
-class Link:
-    def __init__(self, peer1: "Peer", peer2: "Peer"):
-        self.peer1 = peer1
-        self.peer2 = peer2
-        # overall latency = ρij + |m|/cij + dij
-        self.pij = random.uniform(10, 501)  # ms
-        self.cij = 5 if peer1.is_slow_network or peer2.is_slow_network else 100  # Mbps
-        self.cij = self.cij*1024/8*1000  # kB/ms
-
-    def get_delay(self, message: Union[Transaction, Block]):
-        dij = expon_distribution((96/8)/self.cij)  # ms
-        return self.pij + message.size/self.cij + dij  # ms
-
-    def __repr__(self):
-        return f"Link({self.peer1}, {self.peer2})"
-
-    def __eq__(self, other):
-        return (self.peer1 == other.peer1 and self.peer2 == other.peer2) or (self.peer1 == other.peer2 and self.peer2 == other.peer1)
-
-    def __hash__(self):
-        return hash((self.peer1, self.peer2))
-
-    @property
-    def __dict__(self) -> dict:
-        return {
-            "pij": self.pij,
-            "cij": self.cij
-        }
-
-
 class Peer:
 
     def __init__(self, id, is_slow_network=False, is_slow_cpu=False):
-        self.id: int = id
+        # self.id: int = id
+        self.id: str = generate_random_id(3)
         self.is_slow_network: float = is_slow_network
         self.is_slow_cpu: float = is_slow_cpu
         self.crypto_coins: int = INITIAL_COINS
-        self.neighbours: dict["Peer", Link] = {}
+        self.neighbours: dict["Peer", any] = {}
+        self.neighbours_meta: dict["Peer", Link] = {}
         self.cpu_power: float = self.__calculate_cpu_power()
 
         self.forwarded_messages: list[Union[Transaction, Block]] = []
@@ -76,13 +48,14 @@ class Peer:
 
     def connect(self, peer: "Peer", link: Link):
         # self.connected_peers.append(peer)
-        self.neighbours[peer] = link
+        self.neighbours[peer] = link.get_link(self)
+        self.neighbours_meta[peer] = link
 
     def disconnect(self, peer):
         # self.connected_peers.remove(peer)
         self.neighbours.pop(peer)
 
-    @property
+    @ property
     def __dict__(self) -> dict:
         return ({
             "id": self.id,
@@ -90,7 +63,7 @@ class Peer:
             "is_slow_network": self.is_slow_network,
             "is_slow_cpu": self.is_slow_cpu,
             "crypto_coins": self.crypto_coins,
-            "neighbours": [{neighbour.__repr__(): (self.neighbours[neighbour]).__dict__} for neighbour in self.neighbours],
+            "neighbours": [{neighbour.__repr__(): link.__dict__} for (neighbour, link) in self.neighbours_meta.items()],
             "block_chain": self.block_chain.__dict__,
         })
 
@@ -100,32 +73,8 @@ class Peer:
     def __repr__(self):
         return f"Peer(id={self.id})"
 
-    def __transmit_msg(self, msg: Union[Transaction, Block], peer: "Peer"):
-        '''
-        Transmit a message to a peer.
-        '''
-        delay = self.neighbours[peer].get_delay(msg)
-        event_type = "receive_txn" if isinstance(
-            msg, Transaction) else "receive_block"
-        event_description = f"{self.id}->{peer.id}*; {msg}; Δ:{round(delay,4)}ms"
-        new_event = Event(event_type, simulation.clock,
-                          delay, peer.receive_msg, (msg, self), event_description)
-        simulation.enqueue(new_event)
-
     def __forward_msg_to_peer(self, msg: Union[Transaction, Block], peer: "Peer"):
-        '''
-        Forward a message to given peer.
-        '''
-        event_type = "send_txn" if isinstance(
-            msg, Transaction) else "send_block"
-        event_description = f"{self.id}*->{peer.id}; {msg};"
-        new_event = Event(event_type=event_type,
-                          created_at=simulation.clock,
-                          delay=0,
-                          action=self.__transmit_msg,
-                          payload=(msg, peer),
-                          meta_description=event_description)
-        simulation.enqueue(new_event)
+        self.neighbours[peer](msg)
 
     def __forward_msg_to_peers(self, msg: Union[Transaction, Block], peers: list["Peer"]):
         '''
@@ -136,7 +85,7 @@ class Peer:
         for peer in peers:
             self.__forward_msg_to_peer(msg, peer)
 
-    @property
+    @ property
     def connected_peers(self):
         return list(self.neighbours.keys())
 

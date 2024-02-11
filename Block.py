@@ -2,12 +2,12 @@ from typing import Any
 import random
 from copy import deepcopy
 from functools import reduce
-from Transaction import Transaction
+from Transaction import Transaction, CoinBaseTransaction
 import logging
 
-from DiscreteEventSim import simulation, Event
+from DiscreteEventSim import simulation, Event, EventType
 import config
-from utils import expon_distribution
+from utils import expon_distribution, generate_random_id
 
 logger = logging.getLogger(__name__)
 
@@ -15,14 +15,14 @@ logger = logging.getLogger(__name__)
 class Block:
 
     def __init__(self, prev_block, transactions: list[Transaction], timestamp: float):
-        self.block_id: int = random.randint(0, 1000000)
+        self.block_id: int = generate_random_id(4)
         self.prev_block: "Block" = prev_block
         self.transactions: list[Transaction] = transactions
         self.timestamp: float = timestamp
 
         self.prev_block_hash = hash(prev_block) if prev_block else None
 
-        logger.info(f"{self} <block_created> {self.description()}")
+        logger.info(f"{self} <{EventType.BLOCK_CREATE}> {self.description()}")
 
     @property
     def header(self) -> str:
@@ -37,9 +37,6 @@ class Block:
 
     def __hash__(self) -> int:
         return hash(self.header)
-
-    def description(self) -> str:
-        return f"Block(id:{self.block_id} 󰔛:{self.timestamp} prev_hash:{self.prev_block_hash} txns:{self.transactions})"
 
     def __repr__(self) -> str:
         return f"Block(id={self.block_id})"
@@ -81,7 +78,7 @@ def gen_genesis_block():
     Generate genesis block
     '''
     genesis_block = Block(None, [], 0)
-    genesis_block.block_id = 0
+    genesis_block.block_id = "gen_blk"
     return genesis_block
 
 
@@ -159,7 +156,7 @@ class BlockChain:
         1. no balance of any peer shouldn't go negative
         '''
         balances_upto_block = self.__branch_balances[prev_block]
-        if balances_upto_block[transaction.from_id] < transaction.amount:
+        if transaction.from_id and balances_upto_block[transaction.from_id] < transaction.amount:
             # logger.debug(f"Transaction {transaction} is invalid")
             return False
 
@@ -177,7 +174,8 @@ class BlockChain:
         prev_block = block.prev_block
         balances_upto_block = self.__branch_balances[prev_block].copy()
         for transaction in block.transactions:
-            balances_upto_block[transaction.from_id] -= transaction.amount
+            if transaction.from_id:
+                balances_upto_block[transaction.from_id] -= transaction.amount
             balances_upto_block[transaction.to_id] += transaction.amount
         self.__branch_balances[block] = balances_upto_block
         # self.__branch_balances.pop(prev_block)
@@ -214,7 +212,7 @@ class BlockChain:
             return False
 
         self.__blocks.append(block)
-        logger.debug(f"{self.__peer_id} <block_added> {block}")
+        logger.debug(f"{self.__peer_id} <{EventType.BLOCK_ACCEPTED}> {block}")
         self.__update_chain_length(block)
         self.__update_balances(block)
         self.__update_branch_transactions(block)
@@ -237,7 +235,7 @@ class BlockChain:
                          str(self.__longest_chain_length), str(chain_len_upto_block))
             self.__longest_chain_length = chain_len_upto_block
             self.__longest_chain_leaf = block
-            self.mine_block()
+            self.__generate_block()
 
     def add_transaction(self, transaction: Transaction) -> bool:
         '''
@@ -247,24 +245,34 @@ class BlockChain:
         if len(self.__new_transactions) > config.BLOCK_TXNS_MAX_THRESHHOLD:
             logger.debug("<num_txns> New txns len %s. generating new block !!", str(
                 len(self.__new_transactions)))
-            self.mine_block()
+            self.__generate_block()
 
-    def broadcast_block(self, block: Block):
+    def __mine_block_start(self, block: Block):
+        delay = expon_distribution(self.avg_interval_time/self.cpu_power)
+
+        new_event = Event(EventType.BLOCK_MINE_FINISH, simulation.clock, delay,
+                          self.__mine_block_end, (block,), f"mining block finished {block}")
+        simulation.enqueue(new_event)
+
+    def __mine_block_end(self, block: Block):
         '''
         Broadcast a block to all connected peers.
         '''
         if block.prev_block == self.__longest_chain_leaf:
-            self.__add_block(block)
             logger.debug(
-                f"{self.__peer_id} <mining_successful> {block}")
+                "%s <%s> %s", self.__peer_id, EventType.BLOCK_MINE_SUCCESS, block)
+            block.transactions.append(CoinBaseTransaction(
+                self.__peer_id, block.timestamp))
+            self.__add_block(block)
             self.__broadcast_block(block)
             return
+        # no longer longest chain
         for transaction in block.transactions:
             self.__new_transactions.append(transaction)
         logger.debug(
-            f"{self.__peer_id} <mining_failed> {block}")
+            "%s <%s> %s", self.__peer_id, EventType.BLOCK_MINE_FAIL, block)
 
-    def mine_block(self) -> Block:
+    def __generate_block(self) -> Block:
         '''
         Generate a new block
         '''
@@ -290,9 +298,6 @@ class BlockChain:
 
         new_block = Block(self.__longest_chain_leaf,
                           valid_transactions_for_longest_chain, simulation.clock)
-        delay = expon_distribution(self.avg_interval_time/self.cpu_power)
-
-        # self.broadcast_block(new_block)
-        new_event = Event("start_block_mine", simulation.clock, delay,
-                          self.broadcast_block, (new_block,), f"attempt to mine block {new_block}")
+        new_event = Event(EventType.BLOCK_MINE_START, simulation.clock, 0,
+                          self.__mine_block_start, (new_block,), f"attempt to mine block {new_block}")
         simulation.enqueue(new_event)
