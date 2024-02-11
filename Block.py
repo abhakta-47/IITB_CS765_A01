@@ -35,6 +35,10 @@ class Block:
                 lambda a, b: a+b, map(lambda x: x.txn_id, self.transactions))
         return f"{self.block_id}-{self.prev_block_hash}-{self.timestamp}-{transaction_ids}"
 
+    @property
+    def num_txns(self) -> int:
+        return len(self.transactions)
+
     def __hash__(self) -> int:
         return hash(self.header)
 
@@ -48,6 +52,7 @@ class Block:
             "block_id": self.block_id,
             "prev_block": "",
             "self_hash": self.__hash__(),
+            "num_txns": self.num_txns,
             "transactions": sorted(list(map(lambda x: x.__dict__, self.transactions)), key=lambda x: x["txn_id"]),
             "timestamp": self.timestamp,
             "prev_block_hash": self.prev_block_hash
@@ -101,7 +106,7 @@ class BlockChain:
         self.__branch_balances: dict[Block, dict[Any, int]] = {}
         self.__branch_transactions: dict[Block, list[Transaction]] = {}
 
-        self.avg_interval_time = config.INITIAL_AVG_INTERVAL_TIME
+        self.avg_interval_time = config.AVG_BLOCK_MINING_TIME
         self.cpu_power: float = cpu_power
 
         self.__init_genesis_block(peers)

@@ -1,4 +1,4 @@
-from config import NUMBER_OF_PEERS, RATE_PARAMETER, NUMBER_OF_TRANSACTIONS
+from config import NUMBER_OF_PEERS, AVG_TXN_INTERVAL_TIME, NUMBER_OF_TRANSACTIONS
 import logging
 import random
 from time import sleep
@@ -32,7 +32,7 @@ def schedule_transactions(peers):
     time = 0
     while simulation.event_queue.qsize() <= NUMBER_OF_TRANSACTIONS:
         # Generate exponential random variable for interarrival time
-        interarrival_time = expon_distribution(RATE_PARAMETER)
+        interarrival_time = expon_distribution(AVG_TXN_INTERVAL_TIME)
         # logger.debug(f"Interarrival time: {interarrival_time}")
         from_peer = random.choice(peers)
         new_txn = from_peer.create_txn(simulation.clock)

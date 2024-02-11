@@ -11,7 +11,7 @@ from Block import BlockChain
 from DiscreteEventSim import simulation, Event, EventType
 from Link import Link
 
-from config import RATE_PARAMETER, INITIAL_COINS
+from config import INITIAL_COINS
 import config
 
 logger = logging.getLogger(__name__)
