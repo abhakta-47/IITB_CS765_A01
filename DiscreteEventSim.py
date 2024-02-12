@@ -6,6 +6,7 @@ import logging
 import threading
 from time import sleep
 
+
 from config import EVENT_QUEUE_TIMEOUT
 import utils as UITLS
 
@@ -48,7 +49,13 @@ class Event:
 
         self.owner = "nan"
         try:
-            self.owner = inspect.currentframe().f_back.f_locals['self']
+            caller_class = inspect.currentframe().f_back.f_locals['self']
+            self.owner = caller_class
+            caller_class_name = caller_class.__class__.__name__
+            if caller_class_name == "BlockChain":
+                self.owner = f"{caller_class.peer_id}"
+            if caller_class_name == "OneWayLINK":
+                self.owner = f"{caller_class.from_peer}->{caller_class.to_peer}"
         except Exception:
             try:
                 self.owner = inspect.currentframe().f_back.f_locals['module']
@@ -61,11 +68,11 @@ class Event:
     def __lt__(self, other):
         return self.actionable_at < other.actionable_at
 
-    @property
+    @ property
     def created_at_formatted(self):
         return format(round(self.created_at, 6), ",")
 
-    @property
+    @ property
     def actionable_at_formatted(self):
         return format(round(self.actionable_at, 6), ",")
 
@@ -77,6 +84,7 @@ class Simulation:
     def __init__(self):
         self.clock = 0.0
         self.event_queue = PriorityQueue()
+        self.__run_hooks = []
 
     def __enqueue(self, event):
         self.event_queue.put(event)
@@ -89,13 +97,29 @@ class Simulation:
         '''
         self.__enqueue(event)
 
-    def __run(self):
+    def reg_run_hooks(self, fn):
+        '''
+        Register a function to be called before running an event.
+        '''
+        self.__run_hooks.append(fn)
+
+    def __execute_run_hooks(self, event):
+        '''
+        Run hooks for the event.
+        '''
+        for hook in self.__run_hooks:
+            hook(event)
+
+    def __run_event(self, event):
+        self.__execute_run_hooks(event)
+        logger.debug("Running: %s", event)
+        event.action(*event.payload)
+
+    def __run_loop(self):
         while not self.event_queue.empty():
             next_event = self.event_queue.get()
             self.clock = next_event.actionable_at
-            logger.debug("Running: %s", next_event)
-            next_event.action(*next_event.payload)
-            # sleep(5)
+            self.__run_event(next_event)
 
     def run(self):
         '''
@@ -103,7 +127,7 @@ class Simulation:
         '''
         # self.is_running = True
         # self.__dequeue_timer()
-        self.__run()
+        self.__run_loop()
 
 
 simulation = Simulation()

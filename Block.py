@@ -128,6 +128,13 @@ class BlockChain:
             "cpu_power": self.cpu_power
         }
 
+    @property
+    def peer_id(self) -> Any:
+        return self.__peer_id
+
+    def __repr__(self) -> str:
+        return f"BlockChain(👥:{self.__peer_id})"
+
     def __init_genesis_block(self, peers: list[Any]):
         genesis_block = GENESIS_BLOCK
         self.__blocks.append(genesis_block)
@@ -257,7 +264,9 @@ class BlockChain:
             block.transactions.append(CoinBaseTransaction(
                 self.__peer_id, block.timestamp))
             self.__add_block(block)
-            self.__broadcast_block(block)
+            new_event = Event(EventType.BLOCK_BROADCAST, simulation.clock, 0,
+                              self.__broadcast_block, (block,), f"{self.__peer_id}->* broadcast {block}")
+            simulation.enqueue(new_event)
             return
         # no longer longest chain
         for transaction in block.transactions:

@@ -2,12 +2,14 @@ import random
 import json
 import pickle
 from time import time, strftime
+from tqdm import tqdm
 
 from logger import init_logger
 from network import is_connected, create_network
 from DiscreteEventSim import simulation, Event, EventType
 from utils import expon_distribution, create_directory, change_directory, copy_to_directory
 
+import config as CONFIG
 from config import NUMBER_OF_PEERS, AVG_TXN_INTERVAL_TIME, NUMBER_OF_TRANSACTIONS
 
 logger = init_logger()
@@ -65,7 +67,29 @@ def export_data(peers):
         pickle.dump(raw_data, f)
 
 
+def setup_progressbars():
+    '''
+    Setup progress bars
+    '''
+    pbar_txns = tqdm(desc='Txns: ', total=NUMBER_OF_TRANSACTIONS,
+                     position=0, leave=True)
+    pbar_blocks = tqdm(desc='Blks: ', total=NUMBER_OF_TRANSACTIONS /
+                       CONFIG.BLOCK_TXNS_MAX_THRESHHOLD, position=1, leave=True)
+    return (pbar_txns, pbar_blocks)
+
+
+def update_progressbars(pbar_txns, pbar_blocks, event):
+    '''
+    Update progress bars
+    '''
+    if event.type == EventType.TXN_BROADCAST:
+        pbar_txns.update(1)
+    elif event.type == EventType.BLOCK_BROADCAST:
+        pbar_blocks.update(1)
+
+
 if __name__ == "__main__":
+
     peers_network = create_network(NUMBER_OF_PEERS)
     logger.debug("Network created")
     print("Network created")
@@ -78,13 +102,18 @@ if __name__ == "__main__":
     logger.debug("Simulation started")
     print("Simulation started")
     try:
+        (pbar_txns, pbar_blocks) = setup_progressbars()
+        simulation.reg_run_hooks(
+            lambda event: update_progressbars(pbar_txns, pbar_blocks, event))
         simulation.run()
         logger.debug("Simulation ended")
-        print("Simulation ended")
     except KeyboardInterrupt:
         logger.debug("Simulation interrupted")
-        print("Simulation interrupted")
     finally:
+        pbar_txns.close()
+        pbar_blocks.close()
+        print("Simulation ended")
+
         export_data(peers_network)
         logger.debug("Data exported")
         print("Data exported")
