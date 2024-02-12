@@ -213,6 +213,12 @@ class BlockChain:
         if prev_block not in self.__blocks:
             return False
 
+        for transaction in block.transactions:
+            if transaction in self.__new_transactions:
+                self.__new_transactions.remove(transaction)
+            if transaction in self.__branch_transactions:
+                self.__branch_transactions.append(transaction)
+
         self.__blocks.append(block)
         self.__update_chain_length(block)
         self.__update_balances(block)
