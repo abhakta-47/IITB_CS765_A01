@@ -68,7 +68,7 @@ class Block:
         '''
         detailed description of block
         '''
-        return f"Block id:{self.block_id} 󰔛:{self.timestamp} prev_hash:{self.prev_block_hash} txns:{self.transactions}"
+        return f"Block id:{self.block_id} 󰔛:{self.timestamp} prev_block:{self.prev_block} txns:{self.transactions}"
 
     @property
     def size(self) -> int:
@@ -98,6 +98,7 @@ class BlockChain:
         self.__new_transactions: list[Transaction] = []
         self.__block_arrival_time: dict[Block, float] = {}
         self.__broadcast_block: Any = broadcast_block_function
+        self.__mining_new_blocks: list[Block] = []
 
         self.__longest_chain_length: int = 0
         self.__longest_chain_leaf: Block = None
@@ -153,10 +154,18 @@ class BlockChain:
         2. transactions are not repeated
         '''
         prev_block = block.prev_block
+        if prev_block not in self.__blocks:
+            logger.debug(
+                "%s block_dropped %s previous block missing !!", self.peer_id, block)
+            return False
         for transaction in block.transactions:
             if not self.__validate_transaction(transaction, prev_block):
+                logger.debug(
+                    "%s block_dropped %s invalid transaction !!", self.peer_id, block)
                 return False
             if transaction in self.__branch_transactions:
+                logger.debug(
+                    "%s block_dropped %s %s transaction already in blockchain!!", self.peer_id, block, transaction)
                 return False
 
         # logger.debug(f"Block {block} is valid")
@@ -193,14 +202,15 @@ class BlockChain:
         # logger.debug(f"Balances upto block {block} are {balances_upto_block}")
 
     def __update_avg_interval_time(self, block: Block):
-        prev_block = block.prev_block
-        num_blocks = len(self.__blocks)
-        if num_blocks == 1:
-            return
-        interval_time = block.timestamp - prev_block.timestamp
-        self.avg_interval_time = (
-            self.avg_interval_time * (num_blocks-1) + interval_time) / num_blocks
-        logger.debug("Avg interval updated %s", self.avg_interval_time)
+        return
+        # prev_block = block.prev_block
+        # num_blocks = len(self.__blocks)
+        # if num_blocks == 1:
+        #     return
+        # interval_time = block.timestamp - prev_block.timestamp
+        # self.avg_interval_time = (
+        #     self.avg_interval_time * (num_blocks-1) + interval_time) / num_blocks
+        # logger.debug("Avg interval updated %s", self.avg_interval_time)
 
     def __update_block_arrival_time(self, block: Block):
         self.__block_arrival_time[block] = simulation.clock
@@ -209,15 +219,13 @@ class BlockChain:
         '''
         Add a block to the chain
         '''
-        prev_block = block.prev_block
-        if prev_block not in self.__blocks:
-            return False
-
         for transaction in block.transactions:
+            # if transaction in self.__new_transactions:
+            if isinstance(transaction, CoinBaseTransaction):
+                continue
             if transaction in self.__new_transactions:
                 self.__new_transactions.remove(transaction)
-            if transaction in self.__branch_transactions:
-                self.__branch_transactions.append(transaction)
+            self.__branch_transactions.append(transaction)
 
         self.__blocks.append(block)
         self.__update_chain_length(block)
@@ -247,11 +255,11 @@ class BlockChain:
         '''
         Add a transaction to the chain
         '''
+        if transaction in self.__branch_transactions:
+            return
         self.__new_transactions.append(transaction)
-        if len(self.__new_transactions) > config.BLOCK_TXNS_MAX_THRESHHOLD:
-            logger.debug("<num_txns> New txns len %s. generating new block !!", str(
-                len(self.__new_transactions)))
-            self.__generate_block()
+        if transaction.from_id == self.__peer_id:
+            return
 
     def __mine_block_start(self, block: Block):
         delay = expon_distribution(self.avg_interval_time/self.cpu_power)
@@ -264,7 +272,8 @@ class BlockChain:
         '''
         Broadcast a block to all connected peers.
         '''
-        if block.prev_block == self.__longest_chain_leaf:
+        self.__mining_new_blocks.remove(block)
+        if block.prev_block == self.__longest_chain_leaf and self.__validate_block(block):
             logger.debug(
                 "%s <%s> %s", self.__peer_id, EventType.BLOCK_MINE_SUCCESS, block)
             block.transactions.append(CoinBaseTransaction(
@@ -273,12 +282,11 @@ class BlockChain:
             new_event = Event(EventType.BLOCK_BROADCAST, simulation.clock, 0,
                               self.__broadcast_block, (block,), f"{self.__peer_id}->* broadcast {block}")
             simulation.enqueue(new_event)
-            return
-        # no longer longest chain
-        for transaction in block.transactions:
-            self.__new_transactions.append(transaction)
-        logger.debug(
-            "%s <%s> %s", self.__peer_id, EventType.BLOCK_MINE_FAIL, block)
+        else:
+            # no longer longest chain
+            logger.debug(
+                "%s <%s> %s", self.__peer_id, EventType.BLOCK_MINE_FAIL, block)
+        self.__generate_block()
 
     def __generate_block(self) -> Block:
         '''
@@ -299,11 +307,9 @@ class BlockChain:
             logger.debug("<num_txns> not enough txns to mine a block !!",)
             return
 
-        for transaction in valid_transactions_for_longest_chain:
-            self.__new_transactions.remove(transaction)
-
         new_block = Block(self.__longest_chain_leaf,
                           valid_transactions_for_longest_chain, simulation.clock)
+        self.__mining_new_blocks.append(new_block)
         new_event = Event(EventType.BLOCK_MINE_START, simulation.clock, 0,
                           self.__mine_block_start, (new_block,), f"attempt to mine block {new_block}")
         simulation.enqueue(new_event)

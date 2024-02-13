@@ -89,11 +89,23 @@ class Peer:
     def connected_peers(self):
         return list(self.neighbours.keys())
 
-    def create_txn(self, timestamp):
+    def __create_txn(self, timestamp):
         to_peer = np.random.choice(self.connected_peers)
         amount = random.uniform(0, self.crypto_coins)
         self.crypto_coins -= amount
         return Transaction(self, to_peer, amount, timestamp)
+
+    def generate_random_txn(self, timestamp):
+        '''
+        Generate a random transaction and broadcast it to all connected peers.
+        '''
+        # timestamp = simulation.clock
+        new_txn = self.__create_txn(timestamp)
+        self.block_chain.add_transaction(new_txn)
+        new_txn_event_description = f"{self.id}->*; {new_txn};"
+        new_txn_event = Event(EventType.TXN_BROADCAST, timestamp,
+                              timestamp, self.broadcast_txn, (new_txn,), new_txn_event_description)
+        simulation.enqueue(new_txn_event)
 
     def receive_msg(self, msg: Union[Transaction, Block], source: "Peer"):
         '''

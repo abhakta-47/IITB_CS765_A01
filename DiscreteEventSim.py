@@ -85,6 +85,7 @@ class Simulation:
         self.clock = 0.0
         self.event_queue = PriorityQueue()
         self.__run_hooks = []
+        self.stop_sim = False
 
     def __enqueue(self, event):
         self.event_queue.put(event)
@@ -112,11 +113,13 @@ class Simulation:
 
     def __run_event(self, event):
         self.__execute_run_hooks(event)
+        if self.stop_sim:
+            return
         logger.debug("Running: %s", event)
         event.action(*event.payload)
 
     def __run_loop(self):
-        while not self.event_queue.empty():
+        while not self.event_queue.empty() and not self.stop_sim:
             next_event = self.event_queue.get()
             self.clock = next_event.actionable_at
             self.__run_event(next_event)

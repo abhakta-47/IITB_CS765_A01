@@ -38,10 +38,8 @@ def schedule_transactions(peers):
         interarrival_time = expon_distribution(AVG_TXN_INTERVAL_TIME)
         # logger.debug(f"Interarrival time: {interarrival_time}")
         from_peer = random.choice(peers)
-        new_txn = from_peer.create_txn(simulation.clock)
-        new_txn_event_description = f"{from_peer.id}->*; {new_txn};"
-        new_txn_event = Event(EventType.TXN_BROADCAST, time,
-                              time, from_peer.broadcast_txn, (new_txn,), new_txn_event_description)
+        new_txn_event = Event(EventType.TXN_CREATE, time,
+                              time, from_peer.generate_random_txn, (time,), f"{from_peer} create_txn")
         time = time + interarrival_time
         simulation.enqueue(new_txn_event)
 
@@ -78,14 +76,22 @@ def setup_progressbars():
     return (pbar_txns, pbar_blocks)
 
 
+blocks_broadcasted = 0
+
+
 def update_progressbars(pbar_txns, pbar_blocks, event):
     '''
     Update progress bars
     '''
+    global blocks_broadcasted
     if event.type == EventType.TXN_BROADCAST:
         pbar_txns.update(1)
     elif event.type == EventType.BLOCK_BROADCAST:
+        blocks_broadcasted += 1
         pbar_blocks.update(1)
+
+    if blocks_broadcasted > CONFIG.MAX_NUM_BLOCKS:
+        simulation.stop_sim = True
 
 
 if __name__ == "__main__":
