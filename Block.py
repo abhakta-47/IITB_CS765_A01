@@ -4,6 +4,7 @@ from copy import deepcopy
 from functools import reduce
 from Transaction import Transaction, CoinBaseTransaction
 import logging
+import hashlib
 
 from DiscreteEventSim import simulation, Event, EventType
 import config
@@ -14,11 +15,12 @@ logger = logging.getLogger(__name__)
 
 class Block:
 
-    def __init__(self, prev_block, transactions: list[Transaction], timestamp: float):
+    def __init__(self, prev_block, transactions: list[Transaction], miner: any, timestamp: float):
         self.block_id: int = generate_random_id(4)
         self.prev_block: "Block" = prev_block
         self.transactions: list[Transaction] = transactions
         self.timestamp: float = timestamp
+        self.miner: any = miner
 
         self.prev_block_hash = hash(prev_block) if prev_block else None
 
@@ -39,8 +41,8 @@ class Block:
     def num_txns(self) -> int:
         return len(self.transactions)
 
-    def __hash__(self) -> int:
-        return hash(self.header)
+    def block_hash(self) -> int:
+        return hashlib.sha256(self.header.encode()).hexdigest()
 
     def __repr__(self) -> str:
         return f"Block(id={self.block_id})"
@@ -51,7 +53,8 @@ class Block:
             "self": self.__repr__(),
             "block_id": self.block_id,
             "prev_block": "",
-            "self_hash": self.__hash__(),
+            "self_hash": self.block_hash(),
+            "miner": self.miner.__repr__(),
             "num_txns": self.num_txns,
             "transactions": sorted(list(map(lambda x: x.__dict__, self.transactions)), key=lambda x: x["txn_id"]),
             "timestamp": self.timestamp,
@@ -61,7 +64,7 @@ class Block:
             dict_obj.update({
                 'prev_block': {
                     "id": self.prev_block.block_id,
-                    "hash": self.prev_block.__hash__()
+                    "hash": self.prev_block.block_hash()
                 }
             })
         return dict_obj
@@ -84,7 +87,7 @@ def gen_genesis_block():
     '''
     Generate genesis block
     '''
-    genesis_block = Block(None, [], 0)
+    genesis_block = Block(None, [], None, 0)
     genesis_block.block_id = "gen_blk"
     return genesis_block
 
@@ -97,6 +100,7 @@ class BlockChain:
     def __init__(self, cpu_power: float, broadcast_block_function: Any, peers: list[Any], owner_peer: Any):
         self.__blocks: list[Block] = []
         self.__peer_id: Any = owner_peer
+        self.__num_generated_blocks: int = 0
         self.__new_transactions: list[Transaction] = []
         self.__block_arrival_time: dict[Block, float] = {}
         self.__broadcast_block: Any = broadcast_block_function
@@ -303,6 +307,7 @@ class BlockChain:
         Broadcast a block to all connected peers.
         '''
         self.__mining_new_blocks.remove(block)
+        self.__num_generated_blocks += 1
         if block.prev_block == self.__longest_chain_leaf and self.__validate_block(block):
             logger.info(
                 "%s <%s> %s", self.__peer_id, EventType.BLOCK_MINE_SUCCESS, block)
@@ -338,8 +343,13 @@ class BlockChain:
             # logger.debug("<num_txns> not enough txns to mine a block !!",)
             # return
 
+        if len(valid_transactions_for_longest_chain) > config.BLOCK_TXNS_MAX_THRESHHOLD:
+            valid_transactions_for_longest_chain = random.sample(
+                valid_transactions_for_longest_chain, config.BLOCK_TXNS_MAX_THRESHHOLD)
+
         new_block = Block(self.__longest_chain_leaf,
-                          valid_transactions_for_longest_chain, simulation.clock)
+                          valid_transactions_for_longest_chain,
+                          self.peer_id, simulation.clock)
         self.__mining_new_blocks.append(new_block)
         new_event = Event(EventType.BLOCK_MINE_START, simulation.clock, 0,
                           self.__mine_block_start, (new_block,), f"attempt to mine block {new_block}")
@@ -355,3 +365,14 @@ class BlockChain:
             chain.append(cur_chain)
             cur_chain = cur_chain.prev_block
         return chain
+
+    @property
+    def longest_chain_contribution(self):
+        count_longest_chain = 0
+        for block in self.__get_longest_chain():
+            if block.miner == self.__peer_id:
+                count_longest_chain += 1
+
+        if self.__num_generated_blocks == 0:
+            return 0
+        return round(count_longest_chain/self.__num_generated_blocks, 2)

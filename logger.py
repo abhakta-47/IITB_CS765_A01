@@ -14,4 +14,5 @@ def init_logger():
                         filemode='w',
                         format='%(asctime)s - %(levelname)s - %(funcName)s - %(message)s', datefmt='%H:%M:%S')
     logger = logging.getLogger(__name__)
+    logging.disable(logging.CRITICAL + 1)
     return logger

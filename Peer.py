@@ -74,6 +74,7 @@ class Peer:
             "neighbours": [{neighbour.__repr__(): link.__dict__} for (neighbour, link) in self.neighbours_meta.items()],
             "block_chain": self.block_chain.__dict__,
             "cpu_net_description": self.cpu_net_description,
+            "longest_chain_contribution": self.block_chain.longest_chain_contribution,
         })
 
     def description(self) -> str:
