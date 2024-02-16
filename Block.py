@@ -61,7 +61,7 @@ class Block:
             dict_obj.update({
                 'prev_block': {
                     "id": self.prev_block.block_id,
-                    "hash": self.prev_block.__repr__()
+                    "hash": self.prev_block.__hash__()
                 }
             })
         return dict_obj

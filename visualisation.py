@@ -31,12 +31,15 @@ def visualize(results):
         G.node_attr["shape"] = "rectangle"
 
         for block in block_chain['blocks']:
+            label = f'{block["block_id"]}\n #txns: {len(block["transactions"])}\n timestamp: {round(block["timestamp"],2)}'
+            if block['block_id'] != 'gen_blk':
+                label = label + f'\n prev_hash: {block["prev_block"]["hash"]}'
             if block['self'] in block_chain['longest_chain']:
-                G.add_node(block['block_id'], color="green")
+                G.add_node(block['block_id'], color="green", label=label)
             elif block['block_id'] == 'gen_blk':
-                G.add_node(block['block_id'], color="blue")
+                G.add_node(block['block_id'], color="blue", label=label)
             else:
-                G.add_node(block['block_id'])
+                G.add_node(block['block_id'], label=label)
         for block in block_chain['blocks']:
             if block['prev_block'] == '':
                 continue
