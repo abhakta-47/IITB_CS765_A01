@@ -76,8 +76,11 @@ class Event:
     def actionable_at_formatted(self):
         return format(round(self.actionable_at, 6), ",")
 
-    def __repr__(self) -> str:
+    def description(self):
         return f"📆({self.id} 🔀:{self.type} 👷:{self.owner} ⏰️:{self.created_at_formatted}-{self.actionable_at_formatted} 📦:{self.payload}) 📝:\"{self.meta_description}\""
+
+    def __repr__(self) -> str:
+        return f"📆(🔀:{self.type} 👷:{self.owner} ⏰️:{self.created_at_formatted}-{self.actionable_at_formatted} 📦:{self.payload})"
 
 
 class Simulation:
@@ -115,7 +118,11 @@ class Simulation:
         self.__execute_run_hooks(event)
         if self.stop_sim:
             return
-        logger.debug("Running: %s", event)
+        if event.type in [EventType.TXN_SEND, EventType.BLOCK_SEND]:
+            logger.debug("Running: %s", event)
+            logger.debug("Details: %s", event.description())
+        else:
+            logger.info("Running: %s", event)
         event.action(*event.payload)
 
     def __run_loop(self):

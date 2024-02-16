@@ -58,10 +58,12 @@ class Block:
             "prev_block_hash": self.prev_block_hash
         }
         if self.prev_block:
-            dict_obj["prev_block"] = {
-                "id": self.prev_block.block_id,
-                "hash": self.prev_block.__repr__()
-            },
+            dict_obj.update({
+                'prev_block': {
+                    "id": self.prev_block.block_id,
+                    "hash": self.prev_block.__repr__()
+                }
+            })
         return dict_obj
 
     def description(self) -> str:
@@ -105,7 +107,8 @@ class BlockChain:
 
         self.__branch_lengths: dict[Block, int] = {}
         self.__branch_balances: dict[Block, dict[Any, int]] = {}
-        self.__branch_transactions: list[Transaction] = []
+        self.__branch_transactions: dict[Block, list[Transaction]] = {}
+        self.__missing_parent_blocks: list[Block] = []
 
         self.avg_interval_time = config.AVG_BLOCK_MINING_TIME
         self.cpu_power: float = cpu_power
@@ -120,16 +123,19 @@ class BlockChain:
         ): self.__block_arrival_time[x]}, self.__block_arrival_time))
         block_arrival_times = sorted(
             block_arrival_times, key=lambda x: list(x.values())[0])
+        longest_chain = self.__get_longest_chain()
+        longest_chain = list(map(lambda x: x.__repr__(), longest_chain))
         return {
             "blocks": blocks,
             "block_arrival_time": block_arrival_times,
             "longest_chain_length": self.__longest_chain_length,
             "longest_chain_leaf": self.__longest_chain_leaf.__repr__(),
             "avg_interval_time": self.avg_interval_time,
-            "cpu_power": self.cpu_power
+            "cpu_power": self.cpu_power,
+            "longest_chain": longest_chain
         }
 
-    @property
+    @ property
     def peer_id(self) -> Any:
         return self.__peer_id
 
@@ -143,10 +149,10 @@ class BlockChain:
         self.__longest_chain_leaf = genesis_block
         self.__branch_lengths[genesis_block] = 1
         self.__branch_balances[genesis_block] = {}
+        self.__branch_transactions[genesis_block] = []
         for peer in peers:
             self.__branch_balances[genesis_block].update(
                 {peer: config.INITIAL_COINS})
-        logger.debug(f"Genesis block {genesis_block}")
 
     def __validate_block(self, block: Block) -> bool:
         '''
@@ -155,16 +161,21 @@ class BlockChain:
         '''
         prev_block = block.prev_block
         if prev_block not in self.__blocks:
-            logger.debug(
+            logger.info(
                 "%s block_dropped %s previous block missing !!", self.peer_id, block)
+            self.__missing_parent_blocks.append(block)
+            return False
+        if block in self.__blocks:
+            logger.info(
+                "%s block_dropped %s block already in blockchain !!", self.peer_id, block)
             return False
         for transaction in block.transactions:
             if not self.__validate_transaction(transaction, prev_block):
-                logger.debug(
+                logger.info(
                     "%s block_dropped %s invalid transaction !!", self.peer_id, block)
                 return False
-            if transaction in self.__branch_transactions:
-                logger.debug(
+            if transaction in self.__branch_transactions[prev_block]:
+                logger.info(
                     "%s block_dropped %s %s transaction already in blockchain!!", self.peer_id, block, transaction)
                 return False
 
@@ -212,6 +223,13 @@ class BlockChain:
         #     self.avg_interval_time * (num_blocks-1) + interval_time) / num_blocks
         # logger.debug("Avg interval updated %s", self.avg_interval_time)
 
+    def __update_branch_transactions(self, block: Block):
+        prev_block = block.prev_block
+        prev_branch_txns = (self.__branch_transactions[prev_block]).copy()
+        for transaction in block.transactions:
+            prev_branch_txns.append(transaction)
+        self.__branch_transactions[block] = prev_branch_txns
+
     def __update_block_arrival_time(self, block: Block):
         self.__block_arrival_time[block] = simulation.clock
 
@@ -225,13 +243,22 @@ class BlockChain:
                 continue
             if transaction in self.__new_transactions:
                 self.__new_transactions.remove(transaction)
-            self.__branch_transactions.append(transaction)
 
         self.__blocks.append(block)
         self.__update_chain_length(block)
         self.__update_balances(block)
         self.__update_block_arrival_time(block)
         self.__update_avg_interval_time(block)
+        self.__update_branch_transactions(block)
+
+    def __validate_saved_blocks(self):
+        remove_blocks = []
+        for block in self.__missing_parent_blocks:
+            if self.__validate_block(block):
+                remove_blocks.append(block)
+                self.__add_block(block)
+        for block in remove_blocks:
+            self.__missing_parent_blocks.remove(block)
 
     def add_block(self, block: Block) -> bool:
         '''
@@ -243,7 +270,8 @@ class BlockChain:
         self.__add_block(block)
 
         chain_len_upto_block = self.__branch_lengths[block]
-        if chain_len_upto_block >= self.__longest_chain_length:
+        self.__validate_saved_blocks()
+        if chain_len_upto_block > self.__longest_chain_length:
             logger.debug("%s <longest_chain> %s %s generating new block !!",
                          self.__peer_id,
                          str(self.__longest_chain_length), str(chain_len_upto_block))
@@ -255,11 +283,13 @@ class BlockChain:
         '''
         Add a transaction to the chain
         '''
-        if transaction in self.__branch_transactions:
-            return
+        # if transaction in self.__branch_transactions:
+        # return
         self.__new_transactions.append(transaction)
         if transaction.from_id == self.__peer_id:
             return
+        # if len(self.__mining_new_blocks) == 0 and len(self.__new_transactions) >= config.BLOCK_TXNS_MAX_THRESHHOLD:
+            # self.__generate_block()
 
     def __mine_block_start(self, block: Block):
         delay = expon_distribution(self.avg_interval_time/self.cpu_power)
@@ -274,7 +304,7 @@ class BlockChain:
         '''
         self.__mining_new_blocks.remove(block)
         if block.prev_block == self.__longest_chain_leaf and self.__validate_block(block):
-            logger.debug(
+            logger.info(
                 "%s <%s> %s", self.__peer_id, EventType.BLOCK_MINE_SUCCESS, block)
             block.transactions.append(CoinBaseTransaction(
                 self.__peer_id, block.timestamp))
@@ -284,9 +314,10 @@ class BlockChain:
             simulation.enqueue(new_event)
         else:
             # no longer longest chain
-            logger.debug(
+            logger.info(
                 "%s <%s> %s", self.__peer_id, EventType.BLOCK_MINE_FAIL, block)
-        self.__generate_block()
+        logger.info('restarting block minining')
+        # self.__generate_block()
 
     def __generate_block(self) -> Block:
         '''
@@ -303,9 +334,9 @@ class BlockChain:
             balances_upto_block[transaction.to_id] += transaction.amount
             valid_transactions_for_longest_chain.append(transaction)
 
-        if len(valid_transactions_for_longest_chain) < config.BLOCK_TXNS_MIN_THRESHHOLD:
-            logger.debug("<num_txns> not enough txns to mine a block !!",)
-            return
+        # if len(valid_transactions_for_longest_chain) < config.BLOCK_TXNS_MIN_THRESHHOLD:
+            # logger.debug("<num_txns> not enough txns to mine a block !!",)
+            # return
 
         new_block = Block(self.__longest_chain_leaf,
                           valid_transactions_for_longest_chain, simulation.clock)
@@ -313,3 +344,14 @@ class BlockChain:
         new_event = Event(EventType.BLOCK_MINE_START, simulation.clock, 0,
                           self.__mine_block_start, (new_block,), f"attempt to mine block {new_block}")
         simulation.enqueue(new_event)
+
+    def generate_block(self):
+        self.__generate_block()
+
+    def __get_longest_chain(self):
+        chain = []
+        cur_chain = self.__longest_chain_leaf
+        while cur_chain.prev_block:
+            chain.append(cur_chain)
+            cur_chain = cur_chain.prev_block
+        return chain

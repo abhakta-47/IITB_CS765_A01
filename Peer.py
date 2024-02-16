@@ -31,6 +31,14 @@ class Peer:
 
         self.forwarded_messages: list[Union[Transaction, Block]] = []
 
+    @property
+    def cpu_net_description(self):
+        desc_cpu = "slow" if self.is_slow_cpu else "fast"
+        desc_net = "slow" if self.is_slow_network else "fast"
+        desc_cpu = desc_cpu+f" ({round(self.cpu_power, 2)})%"
+
+        return f"CPU: {desc_cpu}, Net: {desc_net}"
+
     def __calculate_cpu_power(self) -> float:
         num_peers = config.NUMBER_OF_PEERS
         z1 = config.Z1
@@ -65,6 +73,7 @@ class Peer:
             "crypto_coins": self.crypto_coins,
             "neighbours": [{neighbour.__repr__(): link.__dict__} for (neighbour, link) in self.neighbours_meta.items()],
             "block_chain": self.block_chain.__dict__,
+            "cpu_net_description": self.cpu_net_description,
         })
 
     def description(self) -> str:

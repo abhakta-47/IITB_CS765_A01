@@ -51,3 +51,13 @@ def copy_to_directory(src, dst):
         os.system(f'cp -r {src} {dst}')
     except OSError as e:
         print('unable to copy', e)
+
+
+def clear_dir(dir):
+    """
+    Clear the graph directory.
+    """
+    try:
+        os.system(f'rm -r {dir}/*')
+    except OSError as e:
+        print('unable to clear graph directory', e)

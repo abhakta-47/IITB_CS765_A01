@@ -1,6 +1,7 @@
 __pycache__/
 venv/
 output/
+graphs/
 
 blockchain_simulation.log
 results.json
