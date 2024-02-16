@@ -1,23 +1,8 @@
-import networkx as nx
-import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
 import pickle
 import pygraphviz as pgv
 
 from utils import create_directory
 
-
-def draw_graph(peers):
-    """
-    Draws a graph of the peers and their connections.
-    """
-    G = nx.Graph()
-    for peer in peers:
-        G.add_node(peer.id)
-        for connected_peer in peer.connected_peers:
-            G.add_edge(peer.id, connected_peer.id)
-    nx.draw(G, with_labels=True)
-    plt.show()
 
 
 def visualize(results):

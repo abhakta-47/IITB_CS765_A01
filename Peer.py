@@ -1,4 +1,3 @@
-import numpy as np
 import random
 import logging
 from copy import deepcopy
@@ -100,7 +99,7 @@ class Peer:
         return list(self.neighbours.keys())
 
     def __create_txn(self, timestamp):
-        to_peer = np.random.choice(self.connected_peers)
+        to_peer = random.choice(self.connected_peers)
         amount = random.uniform(0, self.crypto_coins)
         self.crypto_coins -= amount
         return Transaction(self, to_peer, amount, timestamp)
