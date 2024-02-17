@@ -136,7 +136,8 @@ class BlockChain:
             "longest_chain_leaf": self.__longest_chain_leaf.__repr__(),
             "avg_interval_time": self.avg_interval_time,
             "cpu_power": self.cpu_power,
-            "longest_chain": longest_chain
+            "longest_chain": longest_chain,
+            "branches_info": self.branches_info,
         }
 
     @ property
@@ -365,6 +366,67 @@ class BlockChain:
             chain.append(cur_chain)
             cur_chain = cur_chain.prev_block
         return chain
+    
+    def __get_leaf_blocks(self):
+        '''
+        return leaf blocks
+        '''
+        leaf_blocks = self.__blocks.copy()
+        for block in self.__blocks:
+            if block.prev_block in leaf_blocks:
+                leaf_blocks.remove(block.prev_block)
+        return leaf_blocks
+    
+    def __get_branches(self):
+        '''
+        return branch lengths
+        '''
+        leaf_blocks = self.__get_leaf_blocks()
+        branch_lengths = []
+        for block in leaf_blocks:
+            branch_lengths.append({
+                "leaf_block": block.__repr__(),
+                "length": self.__branch_lengths[block]
+            })
+        return branch_lengths
+    
+    def __get_forks(self):
+        '''
+        return forks
+        '''
+        child_counts = {}
+        for block in self.__blocks:
+            prev_block = block.prev_block
+            if not prev_block:
+                continue
+            if prev_block not in child_counts:
+                child_counts[prev_block] = 0
+            child_counts[prev_block] = child_counts[prev_block] + 1
+        forks = []
+        for block, child_freq in child_counts.items():
+            if child_freq > 1:
+                forks.append({
+                    "fork_at": block.__repr__(),
+                    "num_forks": child_freq
+                })
+        return forks
+
+    @property
+    def branches_info(self):
+        '''
+        number of forks
+        number of branches and their lengths
+        '''
+        branches = self.__get_branches()
+        forks = self.__get_forks()
+
+        return {
+            "num_forks": len(forks),
+            "num_branches": len(branches),
+            "forks": forks,
+            "branches": branches
+        }
+        
 
     @property
     def longest_chain_contribution(self):
@@ -375,4 +437,4 @@ class BlockChain:
 
         if self.__num_generated_blocks == 0:
             return 0
-        return round(count_longest_chain/self.__num_generated_blocks, 2)
+        return round(count_longest_chain/self.__num_generated_blocks*100, 2)

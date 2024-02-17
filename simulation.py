@@ -43,13 +43,71 @@ def schedule_transactions(peers):
                               time, from_peer.generate_random_txn, (time,), f"{from_peer} create_txn")
         time = time + interarrival_time
         simulation.enqueue(new_txn_event)
-    # for i in range(CONFIG.NUMBER_OF_PEERS):
-    miner_peer = random.choice(peers)
-    time_stamp = time*2/3
-    new_block_event = Event(EventType.BLOCK_CREATE, time_stamp,
-                            time_stamp, miner_peer.block_chain.generate_block, (), f"{miner_peer} create_block")
-    simulation.enqueue(new_block_event)
 
+        if simulation.event_queue.qsize() == CONFIG.BLOCK_TXNS_MAX_THRESHHOLD:
+            # for i in range(CONFIG.NUMBER_OF_PEERS):
+            miner_peer = random.choice(peers)
+            time_stamp = time
+            new_block_event = Event(EventType.BLOCK_CREATE, time_stamp,
+                                    time_stamp, miner_peer.block_chain.generate_block, (), f"{miner_peer} create_block")
+            simulation.enqueue(new_block_event)
+
+def calculate_ratios(peers):
+    ratios= {
+        'cpu_low': {
+            'net_low': [],
+            'net_high': [],
+        },
+        'cpu_high': {
+            'net_low': [],
+            'net_high': [],
+        }
+    }
+    for peer in peers:
+        if peer.is_slow_cpu:
+            if peer.is_slow_network:
+                ratios['cpu_low']['net_low'].append(peer.block_chain.longest_chain_contribution)
+            else:
+                ratios['cpu_low']['net_high'].append(peer.block_chain.longest_chain_contribution)
+        else:
+            if peer.is_slow_network:
+                ratios['cpu_high']['net_low'].append(peer.block_chain.longest_chain_contribution)
+            else:
+                ratios['cpu_high']['net_high'].append(peer.block_chain.longest_chain_contribution)
+
+    if len(ratios['cpu_low']['net_low']):
+        ratios['cpu_low']['net_low'] = round(sum(ratios['cpu_low']['net_low'])/len(ratios['cpu_low']['net_low']), 2)
+    else:
+        ratios['cpu_low']['net_low'] = 0
+    if len(ratios['cpu_low']['net_high']):
+        ratios['cpu_low']['net_high'] = round(sum(ratios['cpu_low']['net_high'])/len(ratios['cpu_low']['net_high']), 2)
+    else:
+        ratios['cpu_low']['net_high'] = 0
+    if len(ratios['cpu_high']['net_low']):
+        ratios['cpu_high']['net_low'] = round(sum(ratios['cpu_high']['net_low'])/len(ratios['cpu_high']['net_low']), 2)
+    else:
+        ratios['cpu_high']['net_low'] = 0
+    if len(ratios['cpu_high']['net_high']):
+        ratios['cpu_high']['net_high'] = round(sum(ratios['cpu_high']['net_high'])/len(ratios['cpu_high']['net_high']), 2)
+    else:
+        ratios['cpu_high']['net_high'] = 0
+    return ratios
+
+def calculate_summary(peers):
+    summary = []
+    for peer in peers:
+        info = peer.block_chain.branches_info
+        summary.append({
+            'peer': peer.__repr__(),
+            'hash_power': peer.cpu_power,
+            'network_slow': peer.is_slow_network,
+            'ratio': peer.block_chain.longest_chain_contribution,
+            'num_forks': info['num_forks'],
+            'num_branches': info['num_branches'],
+            'forks': info['forks'],
+            'branches': info['branches'],
+        })
+    return summary
 
 def export_data(peers):
     '''
@@ -61,6 +119,10 @@ def export_data(peers):
         json_data.append(peer.__dict__)
         raw_data.append(peer)
     json_data = {'peers': json_data}
+
+    json_data['ratios'] = calculate_ratios(peers=peers)
+    # json_data['config'] = CONFIG.__dict__
+    json_data['summary'] = calculate_summary(peers=peers)
 
     if CONFIG.SAVE_RESULTS:
         output_dir = f"output/{START_TIME}"
