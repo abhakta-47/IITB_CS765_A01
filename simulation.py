@@ -138,6 +138,7 @@ def export_data(peers):
         change_directory(output_dir)
     clear_dir('graphs')
 
+    config_instance = CONFIG()
     with open('config.json', 'w') as f:
         json.dump(config_instance.__dict__, f, indent=4)
     with open('results.json', 'w') as f:
@@ -237,7 +238,7 @@ def main():
         pbar_blocks.close()
         print("Simulation ended")
 
-        # export_data(peers_network)
+        export_data(peers_network)
         logger.info("Data exported")
         print("Data exported")
 
