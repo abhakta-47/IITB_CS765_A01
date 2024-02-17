@@ -44,14 +44,6 @@ def schedule_transactions(peers):
         time = time + interarrival_time
         simulation.enqueue(new_txn_event)
 
-        if simulation.event_queue.qsize() == CONFIG.BLOCK_TXNS_MAX_THRESHHOLD:
-            # for i in range(CONFIG.NUMBER_OF_PEERS):
-            miner_peer = random.choice(peers)
-            time_stamp = time
-            new_block_event = Event(EventType.BLOCK_CREATE, time_stamp,
-                                    time_stamp, miner_peer.block_chain.generate_block, (), f"{miner_peer} create_block")
-            simulation.enqueue(new_block_event)
-
 
 def calculate_ratios(peers):
     ratios = {
@@ -176,8 +168,33 @@ def update_progressbars(pbar_txns, pbar_blocks, event):
         blocks_broadcasted += 1
         pbar_blocks.update(1)
 
+
+txn_count = 0
+
+
+def block_create_hook(event):
+    global txn_count
+    if event.type == EventType.TXN_BROADCAST:
+        txn_count += 1
+    if event.type == EventType.BLOCK_BROADCAST:
+        txn_count = 0
+    if txn_count > CONFIG.BLOCK_TXNS_MIN_THRESHHOLD*5:
+        miner_peer = random.choice(peers_network)
+        time_stamp = simulation.clock + 10
+        new_block_event = Event(EventType.BLOCK_CREATE, time_stamp,
+                                time_stamp, miner_peer.block_chain.generate_block, (), f"{miner_peer} create_block")
+        simulation.enqueue(new_block_event)
+        txn_count = 0
+
+
+def simulation_terminate_hook(event):
     if blocks_broadcasted > CONFIG.MAX_NUM_BLOCKS+5:
         simulation.stop_sim = True
+
+
+def simulation_hooks(event):
+    block_create_hook(event)
+    simulation_terminate_hook(event)
 
 
 def get_config_instance():
@@ -203,6 +220,7 @@ if __name__ == "__main__":
         (pbar_txns, pbar_blocks) = setup_progressbars()
         simulation.reg_run_hooks(
             lambda event: update_progressbars(pbar_txns, pbar_blocks, event))
+        simulation.reg_run_hooks(simulation_hooks)
         simulation.run()
         logger.info("Simulation ended")
     except KeyboardInterrupt:

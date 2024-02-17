@@ -293,8 +293,6 @@ class BlockChain:
         self.__new_transactions.append(transaction)
         if transaction.from_id == self.__peer_id:
             return
-        # if len(self.__mining_new_blocks) == 0 and len(self.__new_transactions) >= CONFIG.BLOCK_TXNS_MAX_THRESHHOLD:
-            # self.__generate_block()
 
     def __mine_block_start(self, block: Block):
         delay = expon_distribution(self.avg_interval_time/self.cpu_power)
@@ -340,13 +338,20 @@ class BlockChain:
             balances_upto_block[transaction.to_id] += transaction.amount
             valid_transactions_for_longest_chain.append(transaction)
 
-        # if len(valid_transactions_for_longest_chain) < CONFIG.BLOCK_TXNS_MIN_THRESHHOLD:
-            # logger.debug("<num_txns> not enough txns to mine a block !!",)
-            # return
+        if len(valid_transactions_for_longest_chain) < CONFIG.BLOCK_TXNS_MIN_THRESHHOLD:
+            logger.debug("<num_txns> not enough txns to mine a block !!",)
+            return
 
-        if len(valid_transactions_for_longest_chain) > CONFIG.BLOCK_TXNS_MAX_THRESHHOLD:
-            valid_transactions_for_longest_chain = random.sample(
-                valid_transactions_for_longest_chain, CONFIG.BLOCK_TXNS_MAX_THRESHHOLD)
+        if len(valid_transactions_for_longest_chain) <= 1:
+            random_num_txns = len(valid_transactions_for_longest_chain)
+        else:
+            random_num_txns = random.randint(
+                CONFIG.BLOCK_TXNS_MIN_THRESHHOLD,
+                min(CONFIG.BLOCK_TXNS_MAX_THRESHHOLD, len(
+                    valid_transactions_for_longest_chain))
+            )
+        valid_transactions_for_longest_chain = random.sample(
+            valid_transactions_for_longest_chain, random_num_txns)
 
         new_block = Block(self.__longest_chain_leaf,
                           valid_transactions_for_longest_chain,
@@ -411,7 +416,7 @@ class BlockChain:
                 })
         return forks
 
-    @property
+    @ property
     def branches_info(self):
         '''
         number of forks
@@ -427,7 +432,7 @@ class BlockChain:
             "branches": branches
         }
 
-    @property
+    @ property
     def longest_chain_contribution(self):
         count_longest_chain = 0
         for block in self.__get_longest_chain():
