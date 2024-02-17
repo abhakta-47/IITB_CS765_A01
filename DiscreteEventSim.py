@@ -79,17 +79,31 @@ class Event:
         return f"📆(🔀:{self.type} 👷:{self.owner} ⏰️:{self.created_at_formatted}-{self.actionable_at_formatted} 📦:{self.payload})"
 
 
+class HookType():
+    PRE_ENQUEUE = 'pre_enqueue'
+    POST_ENQUEUE = 'post_enqueue'
+    PRE_RUN = 'pre_run'
+    POST_RUN = 'post_run'
+
+
 class Simulation:
     def __init__(self):
         self.clock = 0.0
         self.event_queue = PriorityQueue()
-        self.__run_hooks = []
+        self.__hooks = {
+            HookType.PRE_ENQUEUE: [],
+            HookType.POST_ENQUEUE: [],
+            HookType.PRE_RUN: [],
+            HookType.POST_RUN: []
+        }
         self.stop_sim = False
 
     def __enqueue(self, event):
+        self.__execute_hooks(HookType.PRE_ENQUEUE, event)
         self.event_queue.put(event)
         # logger.debug("Scheduled: %s", event)
         # logger.info(f"Event payload: {event.payload}\n")
+        self.__execute_hooks(HookType.POST_ENQUEUE, event)
 
     def enqueue(self, event):
         '''
@@ -97,21 +111,21 @@ class Simulation:
         '''
         self.__enqueue(event)
 
-    def reg_run_hooks(self, fn):
+    def reg_hooks(self, hook_type: HookType, fn):
         '''
         Register a function to be called before running an event.
         '''
-        self.__run_hooks.append(fn)
+        self.__hooks[hook_type].append(fn)
 
-    def __execute_run_hooks(self, event):
+    def __execute_hooks(self, hook_type, event):
         '''
-        Run hooks for the event.
+        Execute hooks for the event.
         '''
-        for hook in self.__run_hooks:
+        for hook in self.__hooks[hook_type]:
             hook(event)
 
     def __run_event(self, event):
-        self.__execute_run_hooks(event)
+        self.__execute_hooks(HookType.PRE_RUN, event)
         if self.stop_sim:
             return
         if event.type in [EventType.TXN_SEND, EventType.BLOCK_SEND]:
@@ -120,6 +134,7 @@ class Simulation:
         else:
             logger.info("Running: %s", event)
         event.action(*event.payload)
+        self.__execute_hooks(HookType.POST_RUN, event)
 
     def __run_loop(self):
         while not self.event_queue.empty() and not self.stop_sim:

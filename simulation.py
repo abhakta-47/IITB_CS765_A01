@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 from logger import init_logger
 from network import is_connected, create_network
-from DiscreteEventSim import simulation, Event, EventType
+from DiscreteEventSim import simulation, Event, EventType, HookType
 from utils import expon_distribution, create_directory, change_directory, copy_to_directory, clear_dir
 from visualisation import visualize
 
@@ -16,6 +16,11 @@ from config import CONFIG
 logger = init_logger()
 START_TIME = time()
 START_TIME = strftime("%Y-%m-%d_%H:%M:%S")
+config_instance = ''
+peers_network = []
+pbar_txns, pbar_blocks = None, None
+free_tnx_counter = 0
+blocks_broadcasted = 0
 
 
 def log_peers(peers):
@@ -34,7 +39,7 @@ def schedule_transactions(peers):
     Schedule transactions
     '''
     time = 0
-    while simulation.event_queue.qsize() < CONFIG.NUMBER_OF_TRANSACTIONS:
+    while simulation.event_queue.qsize() < CONFIG.TOTAL_NUM_TRANSACTIONS:
         # Generate exponential random variable for interarrival time
         interarrival_time = expon_distribution(CONFIG.AVG_TXN_INTERVAL_TIME)
         # logger.debug(f"Interarrival time: {interarrival_time}")
@@ -112,9 +117,6 @@ def calculate_summary(peers):
     return summary
 
 
-config_instance = ''
-
-
 def export_data(peers):
     '''
     Export data to a file
@@ -152,66 +154,65 @@ def setup_progressbars():
     '''
     Setup progress bars
     '''
-    pbar_txns = tqdm(desc='Txns: ', total=CONFIG.NUMBER_OF_TRANSACTIONS,
+    global pbar_txns, pbar_blocks
+    pbar_txns = tqdm(desc='Txns: ', total=CONFIG.TOTAL_NUM_TRANSACTIONS,
                      position=0, leave=True)
-    pbar_blocks = tqdm(desc='Blks: ', total=CONFIG.NUMBER_OF_TRANSACTIONS /
-                       CONFIG.BLOCK_TXNS_MAX_THRESHHOLD, position=1, leave=True)
-    return (pbar_txns, pbar_blocks)
+    pbar_blocks = tqdm(
+        desc='Blks: ', total=CONFIG.TOTAL_NUM_BLOCKS, position=1, leave=True)
 
 
-blocks_broadcasted = 0
+def post_enqueue_hooks(event):
+    global free_tnx_counter
+    if event.type in [EventType.BLOCK_BROADCAST, EventType.BLOCK_MINE_FINISH, EventType.BLOCK_MINE_START]:
+        free_tnx_counter = 0
 
 
-def update_progressbars(pbar_txns, pbar_blocks, event):
-    '''
-    Update progress bars
-    '''
-    global blocks_broadcasted
-    if event.type == EventType.TXN_BROADCAST:
-        pbar_txns.update(1)
-    elif event.type == EventType.BLOCK_BROADCAST:
-        blocks_broadcasted += 1
-        pbar_blocks.update(1)
+def post_run_hooks(event):
+
+    def update_progress_bars():
+        global pbar_txns, pbar_blocks
+        global free_tnx_counter, blocks_broadcasted
+        if event.type == EventType.TXN_BROADCAST:
+            free_tnx_counter += 1
+            pbar_txns.update(1)
+        elif event.type == EventType.BLOCK_BROADCAST:
+            blocks_broadcasted += 1
+            pbar_blocks.update(1)
+
+    def termination_condition():
+        global blocks_broadcasted
+        if blocks_broadcasted > CONFIG.TOTAL_NUM_BLOCKS + 5:
+            simulation.stop_sim = True
+
+    def create_block_trigger():
+        global free_tnx_counter
+        if free_tnx_counter > (CONFIG.BLOCK_TXNS_TRIGGER_THRESHOLD*5):
+            miner_peer = random.choice(peers_network)
+            time_stamp = simulation.clock + 10
+            new_block_event = Event(EventType.BLOCK_CREATE, time_stamp,
+                                    time_stamp, miner_peer.block_chain.generate_block, (), f"{miner_peer} create_block")
+            simulation.enqueue(new_block_event)
+            free_tnx_counter = 0
+
+    update_progress_bars()
+    termination_condition()
+    create_block_trigger()
 
 
-txn_count = 0
-peers_network = []
+def add_simulation_hooks(simulation):
 
-
-def block_create_hook(event):
-    global txn_count
-    if event.type == EventType.TXN_BROADCAST:
-        txn_count += 1
-    if event.type == EventType.BLOCK_BROADCAST:
-        txn_count = 0
-    if txn_count > (CONFIG.BLOCK_TXNS_TRIGGER_THRESHHOLD+5):
-        miner_peer = random.choice(peers_network)
-        time_stamp = simulation.clock + 10
-        new_block_event = Event(EventType.BLOCK_CREATE, time_stamp,
-                                time_stamp, miner_peer.block_chain.generate_block, (), f"{miner_peer} create_block")
-        simulation.enqueue(new_block_event)
-        # print(f"Block creation triggered at {time_stamp}; {txn_count}")
-        txn_count = 0
-
-
-def simulation_terminate_hook(event):
-    if blocks_broadcasted > CONFIG.MAX_NUM_BLOCKS+5:
-        simulation.stop_sim = True
-
-
-def simulation_hooks(event):
-    block_create_hook(event)
-    simulation_terminate_hook(event)
-
-
-def get_config_instance():
-    pass
+    simulation.reg_hooks(HookType.POST_ENQUEUE, post_enqueue_hooks)
+    simulation.reg_hooks(HookType.POST_RUN, post_run_hooks)
 
 
 def main():
-    global config_instance, peers_network
+    global config_instance, peers_network, pbar_txns, pbar_blocks
 
     config_instance = CONFIG()
+
+    print('Simulation parameters: ')
+    for key, value in config_instance.__dict__.items():
+        print(f"{key.rjust(35)}: {value}")
 
     peers_network = create_network(CONFIG.NUMBER_OF_PEERS)
     logger.info("Network created")
@@ -225,10 +226,8 @@ def main():
     logger.info("Simulation started")
     print("Simulation started")
     try:
-        (pbar_txns, pbar_blocks) = setup_progressbars()
-        simulation.reg_run_hooks(
-            lambda event: update_progressbars(pbar_txns, pbar_blocks, event))
-        simulation.reg_run_hooks(simulation_hooks)
+        setup_progressbars()
+        add_simulation_hooks(simulation)
         simulation.run()
         logger.info("Simulation ended")
     except KeyboardInterrupt:

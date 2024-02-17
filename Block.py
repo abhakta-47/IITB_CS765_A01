@@ -298,7 +298,7 @@ class BlockChain:
         self.__new_transactions.append(transaction)
         if transaction.from_id == self.__peer_id:
             return
-        if self.__pending_generate_block and len(self.__new_transactions) >= CONFIG.BLOCK_TXNS_TRIGGER_THRESHHOLD:
+        if self.__pending_generate_block and len(self.__new_transactions) >= CONFIG.BLOCK_TXNS_TRIGGER_THRESHOLD:
             self.__pending_generate_block = False
             self.__generate_block()
 
@@ -346,7 +346,7 @@ class BlockChain:
             balances_upto_block[transaction.to_id] += transaction.amount
             valid_transactions_for_longest_chain.append(transaction)
 
-        if len(valid_transactions_for_longest_chain) < CONFIG.BLOCK_TXNS_MIN_THRESHHOLD:
+        if len(valid_transactions_for_longest_chain) < CONFIG.BLOCK_TXNS_MIN_THRESHOLD:
             logger.debug("<num_txns> not enough txns to mine a block !!",)
             self.__pending_generate_block = True
             return

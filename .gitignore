@@ -7,3 +7,7 @@ blockchain_simulation.log
 results.json
 results.yaml
 results.pkl
+config.json
+
+tst.py
+prof.csv

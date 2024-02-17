@@ -1,6 +1,7 @@
 import json
+import sys
 
-path = input("Enter the path to the results.json file: ")
+path = sys.argv[1]  # input("Enter the path to the results.json file: ")
 
 results = []
 with open(f'{path}/results.json') as data_file:

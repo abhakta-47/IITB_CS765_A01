@@ -27,7 +27,7 @@ class Peer:
         self.neighbours_meta: dict["Peer", Link] = {}
         self.cpu_power: float = self.__calculate_cpu_power()
 
-        self.forwarded_messages: list[Union[Transaction, Block]] = []
+        self.forwarded_messages: set[Union[Transaction, Block]] = set()
 
     @property
     def cpu_net_description(self):
@@ -88,7 +88,7 @@ class Peer:
         '''
         Forward a message to given peers.
         '''
-        self.forwarded_messages.append(msg.id)
+        self.forwarded_messages.add(msg.id)
 
         for peer in peers:
             self.__forward_msg_to_peer(msg, peer)
