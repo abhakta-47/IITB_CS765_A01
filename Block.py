@@ -6,8 +6,8 @@ from Transaction import Transaction, CoinBaseTransaction
 import logging
 import hashlib
 
+from config import CONFIG
 from DiscreteEventSim import simulation, Event, EventType
-import config
 from utils import expon_distribution, generate_random_id
 
 logger = logging.getLogger(__name__)
@@ -114,7 +114,7 @@ class BlockChain:
         self.__branch_transactions: dict[Block, list[Transaction]] = {}
         self.__missing_parent_blocks: list[Block] = []
 
-        self.avg_interval_time = config.AVG_BLOCK_MINING_TIME
+        self.avg_interval_time = CONFIG.AVG_BLOCK_MINING_TIME
         self.cpu_power: float = cpu_power
 
         self.__init_genesis_block(peers)
@@ -157,7 +157,7 @@ class BlockChain:
         self.__branch_transactions[genesis_block] = []
         for peer in peers:
             self.__branch_balances[genesis_block].update(
-                {peer: config.INITIAL_COINS})
+                {peer: CONFIG.INITIAL_COINS})
 
     def __validate_block(self, block: Block) -> bool:
         '''
@@ -293,7 +293,7 @@ class BlockChain:
         self.__new_transactions.append(transaction)
         if transaction.from_id == self.__peer_id:
             return
-        # if len(self.__mining_new_blocks) == 0 and len(self.__new_transactions) >= config.BLOCK_TXNS_MAX_THRESHHOLD:
+        # if len(self.__mining_new_blocks) == 0 and len(self.__new_transactions) >= CONFIG.BLOCK_TXNS_MAX_THRESHHOLD:
             # self.__generate_block()
 
     def __mine_block_start(self, block: Block):
@@ -340,13 +340,13 @@ class BlockChain:
             balances_upto_block[transaction.to_id] += transaction.amount
             valid_transactions_for_longest_chain.append(transaction)
 
-        # if len(valid_transactions_for_longest_chain) < config.BLOCK_TXNS_MIN_THRESHHOLD:
+        # if len(valid_transactions_for_longest_chain) < CONFIG.BLOCK_TXNS_MIN_THRESHHOLD:
             # logger.debug("<num_txns> not enough txns to mine a block !!",)
             # return
 
-        if len(valid_transactions_for_longest_chain) > config.BLOCK_TXNS_MAX_THRESHHOLD:
+        if len(valid_transactions_for_longest_chain) > CONFIG.BLOCK_TXNS_MAX_THRESHHOLD:
             valid_transactions_for_longest_chain = random.sample(
-                valid_transactions_for_longest_chain, config.BLOCK_TXNS_MAX_THRESHHOLD)
+                valid_transactions_for_longest_chain, CONFIG.BLOCK_TXNS_MAX_THRESHHOLD)
 
         new_block = Block(self.__longest_chain_leaf,
                           valid_transactions_for_longest_chain,
@@ -366,7 +366,7 @@ class BlockChain:
             chain.append(cur_chain)
             cur_chain = cur_chain.prev_block
         return chain
-    
+
     def __get_leaf_blocks(self):
         '''
         return leaf blocks
@@ -376,7 +376,7 @@ class BlockChain:
             if block.prev_block in leaf_blocks:
                 leaf_blocks.remove(block.prev_block)
         return leaf_blocks
-    
+
     def __get_branches(self):
         '''
         return branch lengths
@@ -389,7 +389,7 @@ class BlockChain:
                 "length": self.__branch_lengths[block]
             })
         return branch_lengths
-    
+
     def __get_forks(self):
         '''
         return forks
@@ -426,7 +426,6 @@ class BlockChain:
             "forks": forks,
             "branches": branches
         }
-        
 
     @property
     def longest_chain_contribution(self):

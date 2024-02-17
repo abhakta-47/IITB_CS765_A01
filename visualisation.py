@@ -6,7 +6,6 @@ from utils import create_directory
 
 
 def block_chain_visualization(results):
-    create_directory('graphs')
     num_peers = len(results['peers'])
     Graph = pgv.AGraph(strict=True, directed=True, rankdir="LR")
     Graph.node_attr["shape"] = "record"
@@ -197,8 +196,10 @@ def forks_branches_visualization(results):
 
 
 def visualize(results):
-    # block_chain_visualization(results)
-    # fraction_vs_hashpower_visualization(results)
+    create_directory('graphs')
+
+    block_chain_visualization(results)
+    fraction_vs_hashpower_visualization(results)
     forks_branches_visualization(results)
 
 

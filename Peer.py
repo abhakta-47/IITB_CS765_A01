@@ -10,8 +10,7 @@ from Block import BlockChain
 from DiscreteEventSim import simulation, Event, EventType
 from Link import Link
 
-from config import INITIAL_COINS
-import config
+from config import CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +22,7 @@ class Peer:
         self.id: str = generate_random_id(3)
         self.is_slow_network: float = is_slow_network
         self.is_slow_cpu: float = is_slow_cpu
-        self.crypto_coins: int = INITIAL_COINS
+        self.crypto_coins: int = CONFIG.INITIAL_COINS
         self.neighbours: dict["Peer", any] = {}
         self.neighbours_meta: dict["Peer", Link] = {}
         self.cpu_power: float = self.__calculate_cpu_power()
@@ -39,8 +38,8 @@ class Peer:
         return f"CPU: {desc_cpu}, Net: {desc_net}"
 
     def __calculate_cpu_power(self) -> float:
-        num_peers = config.NUMBER_OF_PEERS
-        z1 = config.Z1
+        num_peers = CONFIG.NUMBER_OF_PEERS
+        z1 = CONFIG.Z1
         deno = (10-9*z1)*num_peers
         neu = 1
         low_cpu_power = round(neu/deno, 4)

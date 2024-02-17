@@ -1,7 +1,7 @@
 import random
 from Peer import Peer
 from Link import Link
-import config
+from config import CONFIG
 
 
 def is_connected(peers: list[Peer]):
@@ -39,9 +39,9 @@ def draw_graph(peers):
 def create_network(n: int) -> list[Peer]:
     is_slow_nets = [False] * n
     is_slow_cpus = [False] * n
-    for i in random.sample(list(range(n)), round(n*config.Z0)):
+    for i in random.sample(list(range(n)), round(n*CONFIG.Z0)):
         is_slow_nets[i] = True
-    for i in random.sample(list(range(n)), round(n*config.Z1)):
+    for i in random.sample(list(range(n)), round(n*CONFIG.Z1)):
         is_slow_cpus[i] = True
 
     peers = [Peer(id=i, is_slow_network=is_slow_nets[i], is_slow_cpu=is_slow_cpus[i])

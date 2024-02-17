@@ -7,7 +7,6 @@ import threading
 from time import sleep
 
 
-from config import EVENT_QUEUE_TIMEOUT
 import utils as UITLS
 
 logger = logging.getLogger(__name__)

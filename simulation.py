@@ -10,8 +10,8 @@ from DiscreteEventSim import simulation, Event, EventType
 from utils import expon_distribution, create_directory, change_directory, copy_to_directory, clear_dir
 from visualisation import visualize
 
-import config as CONFIG
-from config import NUMBER_OF_PEERS, AVG_TXN_INTERVAL_TIME, NUMBER_OF_TRANSACTIONS
+from config import CONFIG
+
 
 logger = init_logger()
 START_TIME = time()
@@ -34,9 +34,9 @@ def schedule_transactions(peers):
     Schedule transactions
     '''
     time = 0
-    while simulation.event_queue.qsize() < NUMBER_OF_TRANSACTIONS:
+    while simulation.event_queue.qsize() < CONFIG.NUMBER_OF_TRANSACTIONS:
         # Generate exponential random variable for interarrival time
-        interarrival_time = expon_distribution(AVG_TXN_INTERVAL_TIME)
+        interarrival_time = expon_distribution(CONFIG.AVG_TXN_INTERVAL_TIME)
         # logger.debug(f"Interarrival time: {interarrival_time}")
         from_peer = random.choice(peers)
         new_txn_event = Event(EventType.TXN_CREATE, time,
@@ -52,8 +52,9 @@ def schedule_transactions(peers):
                                     time_stamp, miner_peer.block_chain.generate_block, (), f"{miner_peer} create_block")
             simulation.enqueue(new_block_event)
 
+
 def calculate_ratios(peers):
-    ratios= {
+    ratios = {
         'cpu_low': {
             'net_low': [],
             'net_high': [],
@@ -66,32 +67,41 @@ def calculate_ratios(peers):
     for peer in peers:
         if peer.is_slow_cpu:
             if peer.is_slow_network:
-                ratios['cpu_low']['net_low'].append(peer.block_chain.longest_chain_contribution)
+                ratios['cpu_low']['net_low'].append(
+                    peer.block_chain.longest_chain_contribution)
             else:
-                ratios['cpu_low']['net_high'].append(peer.block_chain.longest_chain_contribution)
+                ratios['cpu_low']['net_high'].append(
+                    peer.block_chain.longest_chain_contribution)
         else:
             if peer.is_slow_network:
-                ratios['cpu_high']['net_low'].append(peer.block_chain.longest_chain_contribution)
+                ratios['cpu_high']['net_low'].append(
+                    peer.block_chain.longest_chain_contribution)
             else:
-                ratios['cpu_high']['net_high'].append(peer.block_chain.longest_chain_contribution)
+                ratios['cpu_high']['net_high'].append(
+                    peer.block_chain.longest_chain_contribution)
 
     if len(ratios['cpu_low']['net_low']):
-        ratios['cpu_low']['net_low'] = round(sum(ratios['cpu_low']['net_low'])/len(ratios['cpu_low']['net_low']), 2)
+        ratios['cpu_low']['net_low'] = round(
+            sum(ratios['cpu_low']['net_low'])/len(ratios['cpu_low']['net_low']), 2)
     else:
         ratios['cpu_low']['net_low'] = 0
     if len(ratios['cpu_low']['net_high']):
-        ratios['cpu_low']['net_high'] = round(sum(ratios['cpu_low']['net_high'])/len(ratios['cpu_low']['net_high']), 2)
+        ratios['cpu_low']['net_high'] = round(
+            sum(ratios['cpu_low']['net_high'])/len(ratios['cpu_low']['net_high']), 2)
     else:
         ratios['cpu_low']['net_high'] = 0
     if len(ratios['cpu_high']['net_low']):
-        ratios['cpu_high']['net_low'] = round(sum(ratios['cpu_high']['net_low'])/len(ratios['cpu_high']['net_low']), 2)
+        ratios['cpu_high']['net_low'] = round(
+            sum(ratios['cpu_high']['net_low'])/len(ratios['cpu_high']['net_low']), 2)
     else:
         ratios['cpu_high']['net_low'] = 0
     if len(ratios['cpu_high']['net_high']):
-        ratios['cpu_high']['net_high'] = round(sum(ratios['cpu_high']['net_high'])/len(ratios['cpu_high']['net_high']), 2)
+        ratios['cpu_high']['net_high'] = round(
+            sum(ratios['cpu_high']['net_high'])/len(ratios['cpu_high']['net_high']), 2)
     else:
         ratios['cpu_high']['net_high'] = 0
     return ratios
+
 
 def calculate_summary(peers):
     summary = []
@@ -108,6 +118,7 @@ def calculate_summary(peers):
             'branches': info['branches'],
         })
     return summary
+
 
 def export_data(peers):
     '''
@@ -130,6 +141,9 @@ def export_data(peers):
         copy_to_directory('blockchain_simulation.log', output_dir)
         change_directory(output_dir)
     clear_dir('graphs')
+
+    with open('config.json', 'w') as f:
+        json.dump(config_instance.__dict__, f, indent=4)
     with open('results.json', 'w') as f:
         json.dump(json_data, f, indent=4)
     with open('results.pkl', 'wb') as f:
@@ -141,9 +155,9 @@ def setup_progressbars():
     '''
     Setup progress bars
     '''
-    pbar_txns = tqdm(desc='Txns: ', total=NUMBER_OF_TRANSACTIONS,
+    pbar_txns = tqdm(desc='Txns: ', total=CONFIG.NUMBER_OF_TRANSACTIONS,
                      position=0, leave=True)
-    pbar_blocks = tqdm(desc='Blks: ', total=NUMBER_OF_TRANSACTIONS /
+    pbar_blocks = tqdm(desc='Blks: ', total=CONFIG.NUMBER_OF_TRANSACTIONS /
                        CONFIG.BLOCK_TXNS_MAX_THRESHHOLD, position=1, leave=True)
     return (pbar_txns, pbar_blocks)
 
@@ -166,9 +180,15 @@ def update_progressbars(pbar_txns, pbar_blocks, event):
         simulation.stop_sim = True
 
 
+def get_config_instance():
+    pass
+
+
 if __name__ == "__main__":
 
-    peers_network = create_network(NUMBER_OF_PEERS)
+    config_instance = CONFIG()
+
+    peers_network = create_network(CONFIG.NUMBER_OF_PEERS)
     logger.info("Network created")
     print("Network created")
 
