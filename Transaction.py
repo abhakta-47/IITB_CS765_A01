@@ -18,6 +18,10 @@ class Transaction:
         logger.debug(f"{self} <{EventType.TXN_CREATE}>: {self.description()}")
 
     @property
+    def id(self) -> str:
+        return self.txn_id
+
+    @property
     def __dict__(self) -> dict:
         return {
             "txn_id": self.txn_id,

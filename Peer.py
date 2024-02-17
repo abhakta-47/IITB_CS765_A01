@@ -88,7 +88,7 @@ class Peer:
         '''
         Forward a message to given peers.
         '''
-        self.forwarded_messages.append(msg)
+        self.forwarded_messages.append(msg.id)
 
         for peer in peers:
             self.__forward_msg_to_peer(msg, peer)
@@ -121,7 +121,7 @@ class Peer:
         validate the message
         forward the message to other peers if needed* avoid loop
         '''
-        if msg in self.forwarded_messages:
+        if msg.id in self.forwarded_messages:
             return
 
         if isinstance(msg, Transaction):

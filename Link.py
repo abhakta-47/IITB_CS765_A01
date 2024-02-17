@@ -13,7 +13,6 @@ class OneWayLINK:
         self.to_peer = to_peer
         self.pij = pij
         self.cij = cij
-        self.transmitted_messages = []
 
     def __get_delay(self, message: Union[Transaction, Block]):
         dij = expon_distribution((96/8)/self.cij)  # ms
@@ -32,9 +31,6 @@ class OneWayLINK:
         '''
         Transmit a message to the other peer.
         '''
-        if message in self.transmitted_messages:
-            return
-        self.transmitted_messages.append(message)
         event_type = EventType.TXN_SEND if isinstance(
             message, Transaction) else EventType.BLOCK_SEND
         event_description = f"{self.from_peer}*->{self.to_peer}; {message};"

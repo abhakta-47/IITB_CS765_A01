@@ -27,6 +27,10 @@ class Block:
         logger.info(f"{self} <{EventType.BLOCK_CREATE}> {self.description()}")
 
     @property
+    def id(self) -> int:
+        return self.block_id
+
+    @property
     def header(self) -> str:
         if self.block_id == 0:
             return hash("genesis block")
@@ -105,6 +109,7 @@ class BlockChain:
         self.__block_arrival_time: dict[Block, float] = {}
         self.__broadcast_block: Any = broadcast_block_function
         self.__mining_new_blocks: list[Block] = []
+        self.__pending_generate_block: bool = False
 
         self.__longest_chain_length: int = 0
         self.__longest_chain_leaf: Block = None
@@ -293,6 +298,9 @@ class BlockChain:
         self.__new_transactions.append(transaction)
         if transaction.from_id == self.__peer_id:
             return
+        if self.__pending_generate_block and len(self.__new_transactions) >= CONFIG.BLOCK_TXNS_TRIGGER_THRESHHOLD:
+            self.__pending_generate_block = False
+            self.__generate_block()
 
     def __mine_block_start(self, block: Block):
         delay = expon_distribution(self.avg_interval_time/self.cpu_power)
@@ -340,18 +348,8 @@ class BlockChain:
 
         if len(valid_transactions_for_longest_chain) < CONFIG.BLOCK_TXNS_MIN_THRESHHOLD:
             logger.debug("<num_txns> not enough txns to mine a block !!",)
+            self.__pending_generate_block = True
             return
-
-        if len(valid_transactions_for_longest_chain) <= 1:
-            random_num_txns = len(valid_transactions_for_longest_chain)
-        else:
-            random_num_txns = random.randint(
-                CONFIG.BLOCK_TXNS_MIN_THRESHHOLD,
-                min(CONFIG.BLOCK_TXNS_MAX_THRESHHOLD, len(
-                    valid_transactions_for_longest_chain))
-            )
-        valid_transactions_for_longest_chain = random.sample(
-            valid_transactions_for_longest_chain, random_num_txns)
 
         new_block = Block(self.__longest_chain_leaf,
                           valid_transactions_for_longest_chain,

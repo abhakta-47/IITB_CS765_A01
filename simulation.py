@@ -112,10 +112,14 @@ def calculate_summary(peers):
     return summary
 
 
+config_instance = ''
+
+
 def export_data(peers):
     '''
     Export data to a file
     '''
+    global config_instance
     raw_data = []
     json_data = []
     for peer in peers:
@@ -170,6 +174,7 @@ def update_progressbars(pbar_txns, pbar_blocks, event):
 
 
 txn_count = 0
+peers_network = []
 
 
 def block_create_hook(event):
@@ -178,12 +183,13 @@ def block_create_hook(event):
         txn_count += 1
     if event.type == EventType.BLOCK_BROADCAST:
         txn_count = 0
-    if txn_count > CONFIG.BLOCK_TXNS_MIN_THRESHHOLD*5:
+    if txn_count > (CONFIG.BLOCK_TXNS_TRIGGER_THRESHHOLD+5):
         miner_peer = random.choice(peers_network)
         time_stamp = simulation.clock + 10
         new_block_event = Event(EventType.BLOCK_CREATE, time_stamp,
                                 time_stamp, miner_peer.block_chain.generate_block, (), f"{miner_peer} create_block")
         simulation.enqueue(new_block_event)
+        # print(f"Block creation triggered at {time_stamp}; {txn_count}")
         txn_count = 0
 
 
@@ -201,7 +207,8 @@ def get_config_instance():
     pass
 
 
-if __name__ == "__main__":
+def main():
+    global config_instance, peers_network
 
     config_instance = CONFIG()
 
@@ -230,6 +237,10 @@ if __name__ == "__main__":
         pbar_blocks.close()
         print("Simulation ended")
 
-        export_data(peers_network)
+        # export_data(peers_network)
         logger.info("Data exported")
         print("Data exported")
+
+
+if __name__ == "__main__":
+    main()
