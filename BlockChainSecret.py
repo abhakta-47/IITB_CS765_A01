@@ -47,6 +47,7 @@ class PrivateBlockChain(BlockChainBase):
             self._longest_chain_length = self._branch_length(block)
             self._longest_chain_leaf = block
             self._update_lead(-1)
+        self.plot_frame()
 
     def _mine_success_handler(self, block: Block):
         self.secret_blocks.append(block)

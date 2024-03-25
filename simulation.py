@@ -187,7 +187,8 @@ def update_progressbars(pbar_txns, pbar_blocks, event):
 
 if __name__ == "__main__":
 
-    clear_dir("frames")
+    clear_dir("frames/peer_S01")
+    clear_dir("frames/peer_S02")
 
     peers_network = create_network(CONFIG.NUMBER_OF_PEERS)
     logger.info("Network created")

@@ -23,10 +23,16 @@ def draw_graph(peers):
 def visualize_peer(peer, save_path):
     block_chain = peer["block_chain"]
     peer_id = peer["id"]
-    G = pgv.AGraph(strict=False, directed=True, rankdir="LR")
+    G = pgv.AGraph(
+        strict=False,
+        directed=True,
+        rankdir="LR",
+    )
     G.graph_attr["label"] = f"Peer {peer_id} description: {peer['cpu_net_description']}"
-    G.node_attr["shape"] = "rectangle"
-    selfish_peer1 = None
+    G.node_attr["shape"] = "circle"
+    G.node_attr["style"] = "filled"
+    G.node_attr["width"] = 0.1
+
     for block in block_chain["blocks"]:
         label = f'{block["block_id"]}\n #txns: {len(block["transactions"])}\n timestamp: {round(block["timestamp"],2)}'
         if block["block_id"] != "gen_blk":
@@ -35,17 +41,19 @@ def visualize_peer(peer, save_path):
                 + f'\n prev_hash: {block["prev_block"]["hash"]} \n miner: {block["miner"]}'
             )
         if block["self"] in block_chain["longest_chain"]:
-            G.add_node(block["block_id"], color="green", label=label)
+            G.add_node(block["block_id"], color="green", label="")
         elif block["block_id"] == "gen_blk":
-            G.add_node(block["block_id"], color="blue", label=label)
+            G.add_node(block["block_id"], color="blue", label="")
         else:
-            G.add_node(block["block_id"], label=label)
+            G.add_node(block["block_id"], label="")
         if block["is_private"]:
-            G.get_node(block["block_id"]).attr["color"] = "red"
-            if selfish_peer1 is None:
-                selfish_peer1 = block["miner"]
-            if selfish_peer1 == block["miner"]:
-                G.get_node(block["block_id"]).attr["style"] = "dashed"
+            G.get_node(block["block_id"]).attr["shape"] = "diamond"
+            G.get_node(block["block_id"]).attr["height"] = 0.2
+        if "SelfishPeer" in block["miner"]:
+            if "S01" in block["miner"]:
+                G.get_node(block["block_id"]).attr["color"] = "red"
+            else:
+                G.get_node(block["block_id"]).attr["color"] = "orange"
     for block in block_chain["blocks"]:
         if block["prev_block"] == "":
             continue

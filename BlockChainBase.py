@@ -298,6 +298,7 @@ class BlockChainBase:
 
     def publish_block(self, block: Block):
         self._broadcast_block(block)
+        block.is_private = False
 
     def get_longest_chain(self) -> list[Block]:
         return self._get_longest_chain()

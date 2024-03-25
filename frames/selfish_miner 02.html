@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SVG Navigation</title>
+    <style>
+        #svg-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 90vh;
+        }
+
+        #svg-img {
+            max-width: 100%;
+            max-height: 90vh;
+        }
+
+        #nav-buttons {
+            margin-top: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="svg-container">
+        <img id="svg-img" src="./peer_S02/001.svg" alt="SVG Image">
+    </div>
+    <div id="nav-buttons">
+        <button id="prev-btn">Previous</button>
+        <button id="next-btn">Next</button>
+    </div>
+
+    <script>
+        // Function to load the next SVG file
+        function loadNextSVG() {
+            let img = document.getElementById('svg-img');
+            let currentSrc = img.getAttribute('src');
+            let currentNumber = parseInt(currentSrc.split('/').pop().split('.')[0]);
+            let nextNumber = currentNumber + 1;
+            img.setAttribute('src', `./peer_S02/${String(nextNumber).padStart(3, '0')}.svg`);
+        }
+
+        // Function to load the previous SVG file
+        function loadPrevSVG() {
+            let img = document.getElementById('svg-img');
+            let currentSrc = img.getAttribute('src');
+            let currentNumber = parseInt(currentSrc.split('/').pop().split('.')[0]);
+            let prevNumber = currentNumber - 1;
+            if (prevNumber < 1) {
+                prevNumber = 1;
+            }
+            img.setAttribute('src', `./peer_S02/${String(prevNumber).padStart(3, '0')}.svg`);
+        }
+
+        // Event listeners for next and previous buttons
+        document.getElementById('next-btn').addEventListener('click', loadNextSVG);
+        document.getElementById('prev-btn').addEventListener('click', loadPrevSVG);
+
+        // Event listener for left and right arrow keys
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'ArrowRight') {
+                loadNextSVG();
+            } else if (event.key === 'ArrowLeft') {
+                loadPrevSVG();
+            }
+        });
+    </script>
+</body>
+
+</html>
