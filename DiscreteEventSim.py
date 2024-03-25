@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import logging
 import threading
 from time import sleep
+from tqdm import tqdm
 
 
 from config import EVENT_QUEUE_TIMEOUT
@@ -106,11 +107,27 @@ class Simulation:
 
         self.blocks_created = 0
 
+        self.completed_event_counter = tqdm(
+            desc="Completed: ",
+            unit="events",
+            dynamic_ncols=True,
+            position=0,
+            leave=True,
+        )
+        self.scheduled_event_counter = tqdm(
+            desc="Scheduled: ",
+            unit="events",
+            dynamic_ncols=True,
+            position=1,
+            leave=True,
+        )
+
     def count_block_creation(self):
         self.blocks_created += 1
 
     def __enqueue(self, event):
         self.event_queue.put(event)
+        self.scheduled_event_counter.update(1)
         # logger.debug("Scheduled: %s", event)
         # logger.info(f"Event payload: {event.payload}\n")
 
@@ -160,6 +177,8 @@ class Simulation:
                 continue
             self.clock = next_event.actionable_at
             self.__run_event(next_event)
+
+            self.completed_event_counter.update(1)
 
     def run(self):
         """

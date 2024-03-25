@@ -48,38 +48,12 @@ class PrivateBlockChain(BlockChainBase):
             self._longest_chain_leaf = block
             self._update_lead(-1)
 
-    def _mine_block_end(self, block: Block):
-        """
-        Broadcast a block to all connected peers.
-        """
-        self._mining_new_blocks.remove(block)
-        if block.prev_block == self._current_parent_block and self._validate_block(
-            block
-        ):
-            logger.info(
-                "%s <%s> %s", self._peer_id, EventType.BLOCK_MINE_SUCCESS, block
-            )
-            block.transactions.append(
-                CoinBaseTransaction(self._peer_id, block.timestamp)
-            )
-            self.secret_blocks.append(block)
-            self.add_block(block)
-            new_event = Event(
-                EventType.BLOCK_MINE_SUCCESS,
-                simulation.clock,
-                0,
-                self._mine_success_handler,
-                (block,),
-                f"{self._peer_id}->* broadcast {block}",
-            )
-            simulation.enqueue(new_event)
-            # if len(self._blocks) > config.MAX_NUM_BLOCKS:
-            # simulation.stop_sim = True
-        else:
-            # no longer longest chain
-            logger.info("%s <%s> %s", self._peer_id, EventType.BLOCK_MINE_FAIL, block)
-            # self.generate_block()
-        # logger.info("restarting block minining")
+    def _mine_success_handler(self, block: Block):
+        self.secret_blocks.append(block)
+        self.add_block(block)
+        self._generate_block()
+
+    def _mine_fail_handler(self):
         self._generate_block()
 
     def _generate_block(self) -> Block:
@@ -101,7 +75,7 @@ class PrivateBlockChain(BlockChainBase):
             balances_upto_block[transaction.to_id] += transaction.amount
             valid_transactions_for_longest_chain.append(transaction)
 
-        # if len(valid_transactions_for_longest_chain) < config.BLOCK_TXNS_MIN_THRESHHOLD:
+        # if len(valid_transactions_for_longest_chain) < config.BLOCK_TXNS_MIN_THRESHOLD:
         # logger.debug("<num_txns> not enough txns to mine a block !!",)
         # return
 
@@ -113,35 +87,12 @@ class PrivateBlockChain(BlockChainBase):
             is_private=True,
         )
         self._mining_new_blocks.append(new_block)
-        new_event = Event(
-            EventType.BLOCK_MINE_START,
-            simulation.clock,
-            0,
-            self._mine_block_start,
-            (new_block,),
-            f"attempt to mine block {new_block}",
-        )
-        simulation.enqueue(new_event)
+        self._mine_block_start(new_block)
 
     def _get_longest_chain(self):
         chain1 = self._get_chain(self._longest_chain_leaf)
         chain2 = self._get_chain(self._secret_chain_leaf)
         return chain1 if len(chain1) > len(chain2) else chain2
-
-    def publish_block(self, block: Block):
-        new_event = Event(
-            EventType.BLOCK_BROADCAST,
-            simulation.clock,
-            0,
-            self._broadcast_block,
-            (block,),
-            f"{self._peer_id}->* broadcast {block}",
-        )
-        simulation.enqueue(new_event)
-
-    @property
-    def branch_lengths(self):
-        return self._branch_lengths
 
     def _update_lead(self, delta):
         old_lead = self.lead

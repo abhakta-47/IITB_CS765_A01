@@ -232,14 +232,14 @@ class BlockChainBase:
             return
         if (
             len(self._mining_new_blocks) == 0
-            and len(self._new_transactions) >= CONFIG.BLOCK_TXNS_MAX_THRESHHOLD
+            and len(self._new_transactions) >= CONFIG.BLOCK_TXNS_TARGET_THRESHOLD
         ):
             self._generate_block()
 
     def _mine_block_start(self, block: Block):
         delay = expon_distribution(self.avg_interval_time / self.cpu_power)
 
-        new_event = Event(
+        mine_finish_event = Event(
             EventType.BLOCK_MINE_FINISH,
             simulation.clock,
             delay,
@@ -247,18 +247,39 @@ class BlockChainBase:
             (block,),
             f"mining block finished {block}",
         )
-        simulation.enqueue(new_event)
+        simulation.enqueue(mine_finish_event)
+
+    def _mine_block_end(self, block: Block):
+        """
+        Broadcast a block to all connected peers.
+        """
+        self._mining_new_blocks.remove(block)
+        if block.prev_block == self._current_parent_block and self._validate_block(
+            block
+        ):
+            logger.info(
+                "%s <%s> %s", self._peer_id, EventType.BLOCK_MINE_SUCCESS, block
+            )
+            block.transactions.append(
+                CoinBaseTransaction(self._peer_id, block.timestamp)
+            )
+            min_success_event = Event(
+                EventType.BLOCK_MINE_SUCCESS,
+                simulation.clock,
+                0,
+                self._mine_success_handler,
+                (block,),
+                f"{self._peer_id}->* broadcast {block}",
+            )
+            simulation.enqueue(min_success_event)
+        else:
+            logger.info("%s <%s> %s", self._peer_id, EventType.BLOCK_MINE_FAIL, block)
 
     def _mine_success_handler(self, block: Block):
-        new_event = Event(
-            EventType.BLOCK_BROADCAST,
-            simulation.clock,
-            0,
-            self._broadcast_block,
-            (block,),
-            f"{self._peer_id}->* broadcast {block}",
-        )
-        simulation.enqueue(new_event)
+        raise NotImplementedError
+
+    def _mine_fail_handler(self):
+        raise NotImplementedError
 
     def generate_block(self):
         self._generate_block()
@@ -276,15 +297,7 @@ class BlockChainBase:
             self.publish_block(block)
 
     def publish_block(self, block: Block):
-        new_event = Event(
-            EventType.BLOCK_BROADCAST,
-            simulation.clock,
-            0,
-            self._broadcast_block,
-            (block,),
-            f"{self._peer_id}->* broadcast {block}",
-        )
-        simulation.enqueue(new_event)
+        self._broadcast_block(block)
 
     def get_longest_chain(self) -> list[Block]:
         return self._get_longest_chain()

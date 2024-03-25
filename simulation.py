@@ -1,6 +1,7 @@
 import random
 import json
 import pickle
+import sys
 from time import time, strftime
 from tqdm import tqdm
 
@@ -49,7 +50,7 @@ def schedule_transactions(peers):
         new_txn_event = Event(
             EventType.TXN_CREATE,
             time,
-            time,
+            0,
             from_peer.generate_random_txn,
             (time,),
             f"{from_peer} create_txn",
@@ -62,7 +63,7 @@ def schedule_transactions(peers):
     new_block_event = Event(
         EventType.BLOCK_CREATE,
         time_stamp,
-        time_stamp,
+        0,
         miner_peer.block_chain.generate_block,
         (),
         f"{miner_peer} create_block",
@@ -152,12 +153,12 @@ def setup_progressbars():
     Setup progress bars
     """
     pbar_txns = tqdm(
-        desc="Txns: ", total=CONFIG.NUMBER_OF_TRANSACTIONS, position=0, leave=True
+        desc="Txns: ", total=CONFIG.NUMBER_OF_TRANSACTIONS, position=2, leave=True
     )
     pbar_blocks = tqdm(
         desc="Blks: ",
         total=CONFIG.MAX_NUM_BLOCKS,
-        position=1,
+        position=3,
         leave=True,
     )
     return (pbar_txns, pbar_blocks)
@@ -171,7 +172,10 @@ def update_progressbars(pbar_txns, pbar_blocks, event):
     Update progress bars
     """
     global successful_blocks_mined
-    if event.type == EventType.TXN_BROADCAST:
+    # text = f"Events: {simulation.event_queue.qsize()}"
+    # sys.stdout.write("\r" + text)
+    # sys.stdout.flush()
+    if event.type == EventType.TXN_CREATE:
         pbar_txns.update(1)
     elif event.type == EventType.BLOCK_MINE_SUCCESS:
         successful_blocks_mined += 1

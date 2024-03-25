@@ -109,16 +109,7 @@ class Peer:
         # timestamp = simulation.clock
         new_txn = self.__create_txn(timestamp)
         self.block_chain.add_transaction(new_txn)
-        new_txn_event_description = f"{self.id}->*; {new_txn};"
-        new_txn_event = Event(
-            EventType.TXN_BROADCAST,
-            timestamp,
-            timestamp,
-            self.broadcast_txn,
-            (new_txn,),
-            new_txn_event_description,
-        )
-        simulation.enqueue(new_txn_event)
+        self.broadcast_txn(new_txn)
 
     def receive_msg(self, msg: Union[Transaction, Block], source: "Peer"):
         """

@@ -33,33 +33,16 @@ class HonestBlockChain(BlockChainBase):
             self._longest_chain_leaf = block
             self._generate_block()
 
-    def _mine_block_end(self, block: Block):
-        """
-        Broadcast a block to all connected peers.
-        """
-        self._mining_new_blocks.remove(block)
-        if block.prev_block == self._longest_chain_leaf and self._validate_block(block):
-            logger.info(
-                "%s <%s> %s", self._peer_id, EventType.BLOCK_MINE_SUCCESS, block
-            )
-            block.transactions.append(
-                CoinBaseTransaction(self._peer_id, block.timestamp)
-            )
-            self._add_block(block)
-            new_event = Event(
-                EventType.BLOCK_MINE_SUCCESS,
-                simulation.clock,
-                0,
-                self._mine_success_handler,
-                (block,),
-                f"{self._peer_id}->* broadcast {block}",
-            )
-            simulation.enqueue(new_event)
-        else:
-            # no longer longest chain
-            logger.info("%s <%s> %s", self._peer_id, EventType.BLOCK_MINE_FAIL, block)
-        logger.info("restarting block minining")
-        # self._generate_block()
+    @property
+    def _current_parent_block(self) -> Block:
+        return self._longest_chain_leaf
+
+    def _mine_success_handler(self, block: Block):
+        self._add_block(block)
+        self.publish_block(block)
+
+    def _mine_fail_handler(self):
+        return
 
     def _generate_block(self) -> Block:
         """
@@ -75,7 +58,7 @@ class HonestBlockChain(BlockChainBase):
             balances_upto_block[transaction.to_id] += transaction.amount
             valid_transactions_for_longest_chain.append(transaction)
 
-        # if len(valid_transactions_for_longest_chain) < config.BLOCK_TXNS_MIN_THRESHHOLD:
+        # if len(valid_transactions_for_longest_chain) < config.BLOCK_TXNS_MIN_THRESHOLD:
         # logger.debug("<num_txns> not enough txns to mine a block !!",)
         # return
 
@@ -87,26 +70,7 @@ class HonestBlockChain(BlockChainBase):
             is_private=False,
         )
         self._mining_new_blocks.append(new_block)
-        new_event = Event(
-            EventType.BLOCK_MINE_START,
-            simulation.clock,
-            0,
-            self._mine_block_start,
-            (new_block,),
-            f"attempt to mine block {new_block}",
-        )
-        simulation.enqueue(new_event)
+        self._mine_block_start(new_block)
 
     def _get_longest_chain(self):
         return self._get_chain(self._longest_chain_leaf)
-
-    def publish_block(self, block: Block):
-        new_event = Event(
-            EventType.BLOCK_BROADCAST,
-            simulation.clock,
-            0,
-            self._broadcast_block,
-            (block,),
-            f"{self._peer_id}->* broadcast {block}",
-        )
-        simulation.enqueue(new_event)
