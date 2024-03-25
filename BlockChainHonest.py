@@ -20,7 +20,7 @@ class HonestBlockChain(BlockChainBase):
 
         self._add_block(block)
 
-        chain_len_upto_block = self._branch_lengths[block]
+        chain_len_upto_block = self._branch_length(block)
         self._validate_saved_blocks()
         if chain_len_upto_block > self._longest_chain_length:
             logger.debug(
@@ -67,7 +67,7 @@ class HonestBlockChain(BlockChainBase):
         """
         sorted(self._new_transactions, key=lambda x: x.timestamp)
         valid_transactions_for_longest_chain = []
-        balances_upto_block = self._branch_balances[self._longest_chain_leaf].copy()
+        balances_upto_block = self._branch_balance(self._longest_chain_leaf).copy()
         for transaction in self._new_transactions:
             if balances_upto_block[transaction.from_id] < transaction.amount:
                 continue

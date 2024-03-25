@@ -22,6 +22,7 @@ class BlockChainBase:
     ):
         self._blocks: list[Block] = []
         self._peer_id: Any = owner_peer
+        self._peers: list[Any] = peers
         self._new_transactions: list[Transaction] = []
         self._block_arrival_time: dict[Block, float] = {}
         self._broadcast_block: Any = broadcast_block_function
@@ -30,9 +31,6 @@ class BlockChainBase:
         self._longest_chain_length: int = 0
         self._longest_chain_leaf: Block = None
 
-        self._branch_lengths: dict[Block, int] = {}
-        self._branch_balances: dict[Block, dict[Any, int]] = {}
-        self._branch_transactions: dict[Block, list[Transaction]] = {}
         self._missing_parent_blocks: list[Block] = []
 
         self.avg_interval_time = CONFIG.AVG_BLOCK_MINING_TIME
@@ -77,11 +75,36 @@ class BlockChainBase:
         self._blocks.append(genesis_block)
         self._longest_chain_length = 1
         self._longest_chain_leaf = genesis_block
-        self._branch_lengths[genesis_block] = 1
-        self._branch_balances[genesis_block] = {}
-        self._branch_transactions[genesis_block] = []
         for peer in peers:
-            self._branch_balances[genesis_block].update({peer: CONFIG.INITIAL_COINS})
+            self._branch_balance(genesis_block).update({peer: CONFIG.INITIAL_COINS})
+
+    def _branch_length(self, block: Block):
+        length = 0
+        cur_block = block
+        while cur_block:
+            length += 1
+            cur_block = cur_block.prev_block
+        return length
+
+    def _branch_balance(self, block: Block):
+        if block == GENESIS_BLOCK:
+            return {peer: CONFIG.INITIAL_COINS for peer in self._peers}
+        prev_block = block.prev_block
+        balances_upto_block = self._branch_balance(prev_block)
+        for transaction in block.transactions:
+            if transaction.from_id:
+                balances_upto_block[transaction.from_id] -= transaction.amount
+            balances_upto_block[transaction.to_id] += transaction.amount
+        return balances_upto_block
+
+    def _branch_transaction(self, block: Block):
+        if block == GENESIS_BLOCK:
+            return []
+        prev_block = block.prev_block
+        prev_branch_txns = self._branch_transaction(prev_block)
+        for transaction in block.transactions:
+            prev_branch_txns.append(transaction)
+        return prev_branch_txns
 
     def _validate_block(self, block: Block) -> bool:
         """
@@ -109,7 +132,7 @@ class BlockChainBase:
                     "%s block_dropped %s invalid transaction !!", self.peer_id, block
                 )
                 return False
-            if transaction in self._branch_transactions[prev_block]:
+            if transaction in self._branch_transaction(prev_block):
                 logger.info(
                     "%s block_dropped %s %s transaction already in blockchain!!",
                     self.peer_id,
@@ -127,7 +150,7 @@ class BlockChainBase:
         """
         1. no balance of any peer shouldn't go negative
         """
-        balances_upto_block = self._branch_balances[prev_block]
+        balances_upto_block = self._branch_balance(prev_block)
         if (
             transaction.from_id
             and balances_upto_block[transaction.from_id] < transaction.amount
@@ -137,24 +160,6 @@ class BlockChainBase:
 
         # logger.debug(f"Transaction {transaction} is valid")
         return True
-
-    def _update_chain_length(self, block: Block):
-        prev_block = block.prev_block
-        chain_len_upto_block = self._branch_lengths[prev_block] + 1
-        self._branch_lengths[block] = chain_len_upto_block
-        # self._branch_lengths.pop(prev_block)
-        # logger.debug(f"Chain length upto block {block} is {chain_len_upto_block}")
-
-    def _update_balances(self, block: Block):
-        prev_block = block.prev_block
-        balances_upto_block = self._branch_balances[prev_block].copy()
-        for transaction in block.transactions:
-            if transaction.from_id:
-                balances_upto_block[transaction.from_id] -= transaction.amount
-            balances_upto_block[transaction.to_id] += transaction.amount
-        self._branch_balances[block] = balances_upto_block
-        # self._branch_balances.pop(prev_block)
-        # logger.debug(f"Balances upto block {block} are {balances_upto_block}")
 
     def _update_avg_interval_time(self, block: Block):
         raise NotImplementedError
@@ -166,13 +171,6 @@ class BlockChainBase:
         # self.avg_interval_time = (
         #     self.avg_interval_time * (num_blocks-1) + interval_time) / num_blocks
         # logger.debug("Avg interval updated %s", self.avg_interval_time)
-
-    def _update_branch_transactions(self, block: Block):
-        prev_block = block.prev_block
-        prev_branch_txns = (self._branch_transactions[prev_block]).copy()
-        for transaction in block.transactions:
-            prev_branch_txns.append(transaction)
-        self._branch_transactions[block] = prev_branch_txns
 
     def _update_block_arrival_time(self, block: Block):
         self._block_arrival_time[block] = simulation.clock
@@ -189,11 +187,8 @@ class BlockChainBase:
                 self._new_transactions.remove(transaction)
 
         self._blocks.append(block)
-        self._update_chain_length(block)
-        self._update_balances(block)
         self._update_block_arrival_time(block)
         # self._update_avg_interval_time(block)
-        self._update_branch_transactions(block)
         # self.plot_frame()
 
     def _get_longest_chain(self) -> list[Block]:

@@ -20,7 +20,6 @@ from utils import (
 from visualisation import visualize
 
 import config as CONFIG
-from config import NUMBER_OF_PEERS, AVG_TXN_INTERVAL_TIME, NUMBER_OF_TRANSACTIONS
 
 logger = init_logger()
 START_TIME = time()
@@ -42,9 +41,9 @@ def schedule_transactions(peers):
     Schedule transactions
     """
     time = 0
-    while simulation.event_queue.qsize() < NUMBER_OF_TRANSACTIONS:
+    while simulation.event_queue.qsize() < CONFIG.NUMBER_OF_TRANSACTIONS:
         # Generate exponential random variable for interarrival time
-        interarrival_time = expon_distribution(AVG_TXN_INTERVAL_TIME)
+        interarrival_time = expon_distribution(CONFIG.AVG_TXN_INTERVAL_TIME)
         # logger.debug(f"Interarrival time: {interarrival_time}")
         from_peer = random.choice(peers)
         new_txn_event = Event(
@@ -153,11 +152,11 @@ def setup_progressbars():
     Setup progress bars
     """
     pbar_txns = tqdm(
-        desc="Txns: ", total=NUMBER_OF_TRANSACTIONS, position=0, leave=True
+        desc="Txns: ", total=CONFIG.NUMBER_OF_TRANSACTIONS, position=0, leave=True
     )
     pbar_blocks = tqdm(
         desc="Blks: ",
-        total=NUMBER_OF_TRANSACTIONS / CONFIG.BLOCK_TXNS_MAX_THRESHHOLD,
+        total=CONFIG.MAX_NUM_BLOCKS,
         position=1,
         leave=True,
     )
@@ -186,7 +185,7 @@ if __name__ == "__main__":
 
     clear_dir("frames")
 
-    peers_network = create_network(NUMBER_OF_PEERS)
+    peers_network = create_network(CONFIG.NUMBER_OF_PEERS)
     logger.info("Network created")
     print("Network created")
     # draw_graph(peers_network)

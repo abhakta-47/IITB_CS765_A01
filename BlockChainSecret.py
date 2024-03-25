@@ -43,8 +43,8 @@ class PrivateBlockChain(BlockChainBase):
         if block.miner == self._peer_id:
             self._secret_chain_leaf = block
             self._update_lead(1)
-        elif self._longest_chain_length < self._branch_lengths[block]:
-            self._longest_chain_length = self._branch_lengths[block]
+        elif self._longest_chain_length < self._branch_length(block):
+            self._longest_chain_length = self._branch_length(block)
             self._longest_chain_leaf = block
             self._update_lead(-1)
 
@@ -93,7 +93,7 @@ class PrivateBlockChain(BlockChainBase):
         # else:
 
         parent_block = self._current_parent_block
-        balances_upto_block = self._branch_balances[parent_block].copy()
+        balances_upto_block = self._branch_balance(parent_block).copy()
         for transaction in self._new_transactions:
             if balances_upto_block[transaction.from_id] < transaction.amount:
                 continue
