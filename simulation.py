@@ -108,21 +108,21 @@ def setup_progressbars():
     return (pbar_txns, pbar_blocks)
 
 
-blocks_broadcasted = 0
+successful_blocks_mined = 0
 
 
 def update_progressbars(pbar_txns, pbar_blocks, event):
     """
     Update progress bars
     """
-    global blocks_broadcasted
+    global successful_blocks_mined
     if event.type == EventType.TXN_BROADCAST:
         pbar_txns.update(1)
-    elif event.type == EventType.BLOCK_BROADCAST:
-        blocks_broadcasted += 1
+    elif event.type == EventType.BLOCK_MINE_SUCCESS:
+        successful_blocks_mined += 1
         pbar_blocks.update(1)
 
-    if blocks_broadcasted > CONFIG.MAX_NUM_BLOCKS + 5:
+    if successful_blocks_mined > CONFIG.MAX_NUM_BLOCKS + 5:
         simulation.stop_sim = True
 
 
@@ -149,6 +149,7 @@ if __name__ == "__main__":
         logger.info("Simulation ended")
     except KeyboardInterrupt:
         logger.info("Simulation interrupted")
+        simulation.force_stop = True
     finally:
         for peer in peers_network:
             peer.flush_blocks()
