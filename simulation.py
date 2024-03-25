@@ -107,6 +107,10 @@ def calculate_mpu_ratios(peers: list[Peer]):
             "type": peer.type,
             "mpu_adv": mpu_adv,
             "mpu_overall": mpu_overall,
+            "num_blocks_public_chain_by_peer": num_blocks_public_chain_by_peer,
+            "num_blocks_public_chain_by_all": num_blocks_public_chain_by_all,
+            "num_blocks_mined_by_peer": num_blocks_mined_by_peer,
+            "num_blocks_mined_by_all": num_blocks_mined_by_all,
         }
 
     mpu_ratios = []
@@ -138,6 +142,8 @@ def export_data(peers):
         json.dump(json_data, f, indent=4)
     with open("results.pkl", "wb") as f:
         pickle.dump(json_data, f)
+    with open("summary.json", "w") as f:
+        json.dump(mpu_ratios, f, indent=4)
     visualize(json_data)
 
 
