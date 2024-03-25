@@ -8,7 +8,8 @@ from logger import init_logger
 from network import is_connected, create_network, draw_graph
 from DiscreteEventSim import simulation, Event, EventType
 from Peer import Peer
-from Block import Block, BlockChain
+from Block import Block
+from BlockChainBase import BlockChainBase
 from utils import (
     expon_distribution,
     create_directory,
@@ -79,7 +80,7 @@ def calculate_mpu_ratios(peers: list[Peer]):
         """
         Calculate the mining power unit of a peer.
         """
-        block_chain: BlockChain = peer.block_chain
+        block_chain: BlockChainBase = peer.block_chain
         longest_chain_blocks = block_chain.get_longest_chain()
         all_blocks = block_chain.get_blocks()
 
@@ -177,7 +178,7 @@ def update_progressbars(pbar_txns, pbar_blocks, event):
         successful_blocks_mined += 1
         pbar_blocks.update(1)
 
-    if successful_blocks_mined > CONFIG.MAX_NUM_BLOCKS + 5:
+    if successful_blocks_mined > CONFIG.MAX_NUM_BLOCKS:
         simulation.stop_sim = True
 
 

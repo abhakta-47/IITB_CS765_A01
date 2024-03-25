@@ -7,8 +7,9 @@ from typing import Union
 from Transaction import Transaction
 from Block import Block
 from utils import expon_distribution, generate_random_id
-from Block import BlockChain
-from SecretBlock import PrivateBlockChain
+from BlockChainBase import BlockChainBase
+from BlockChainHonest import HonestBlockChain
+from BlockChainSecret import PrivateBlockChain
 from DiscreteEventSim import simulation, Event, EventType
 from Link import Link
 
@@ -29,7 +30,7 @@ class Peer:
         self.neighbours: dict["Peer", any] = {}
         self.neighbours_meta: dict["Peer", Link] = {}
         self.cpu_power: float = cpu_power
-        self.block_chain: BlockChain = None
+        self.block_chain: BlockChainBase = None
         self.type = "HonestPeer"
 
         self.forwarded_messages: list[Union[Transaction, Block]] = []
@@ -175,7 +176,7 @@ class HonestPeer(Peer):
         return f"HonestPeer(id={self.id})"
 
     def init_blockchain(self, peers: list["Peer"]):
-        self.block_chain = BlockChain(
+        self.block_chain = HonestBlockChain(
             cpu_power=self.cpu_power,
             broadcast_block_function=self.broadcast_block,
             peers=peers,
