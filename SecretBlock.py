@@ -31,6 +31,11 @@ class PrivateBlockChain:
         self.__longest_chain_length: int = 0
         self.__longest_chain_leaf: Block = None
 
+        self.__secret_chain_length: int = 0
+        self.__secret_chain_leaf: Block = None
+
+        self.__current_parent_block: Block = None
+
         self.__branch_lengths: dict[Block, int] = {}
         self.__branch_balances: dict[Block, dict[Any, int]] = {}
         self.__branch_transactions: dict[Block, list[Transaction]] = {}
@@ -43,6 +48,7 @@ class PrivateBlockChain:
         self.lead: int = 0
 
         self.__init_genesis_block(peers)
+        self.__current_parent_block = self.__longest_chain_leaf
         self.__generate_block()
 
     @property
@@ -98,7 +104,8 @@ class PrivateBlockChain:
             logger.info(
                 "%s block_dropped %s previous block missing !!", self.peer_id, block
             )
-            self.__missing_parent_blocks.append(block)
+            if block not in self.__missing_parent_blocks:
+                self.__missing_parent_blocks.append(block)
             return False
         if block in self.__blocks:
             logger.info(
@@ -216,22 +223,27 @@ class PrivateBlockChain:
             return False
 
         self.__add_block(block)
+        self.__validate_saved_blocks()
 
-        chain_len_upto_block = self.__branch_lengths[block]
-        # self.__validate_saved_blocks()
-        if chain_len_upto_block > self.__longest_chain_length:
-            logger.debug(
-                "%s <longest_chain> %s %s generating new block !!",
-                self.__peer_id,
-                str(self.__longest_chain_length),
-                str(chain_len_upto_block),
-            )
-            self.__longest_chain_length = chain_len_upto_block
-            self.__longest_chain_leaf = block
-            if block.miner != self.__peer_id:
-                self.__update_lead(-1)
-            else:
-                self.__update_lead(1)
+        if block.miner == self.__peer_id:
+            self.__secret_chain_leaf = block
+            self.__secret_chain_length = self.__branch_lengths[block]
+            self.__update_lead(1)
+        elif self.__longest_chain_length < self.__branch_lengths[block]:
+            self.__public_chain_leaf = block
+            self.__longest_chain_length = self.__branch_lengths[block]
+            # logger.debug(
+            #     "%s <longest_chain> %s %s generating new block !!",
+            #     self.__peer_id,
+            #     str(self.__longest_chain_length),
+            #     str(chain_len_upto_block),
+            # )
+            # self.__longest_chain_length = chain_len_upto_block
+            # self.__longest_chain_leaf = block
+            # if block.miner != self.__peer_id:
+            self.__update_lead(-1)
+            # else:
+            # self.__update_lead(1)
 
     def add_transaction(self, transaction: Transaction) -> bool:
         """
@@ -242,8 +254,11 @@ class PrivateBlockChain:
         self.__new_transactions.append(transaction)
         if transaction.from_id == self.__peer_id:
             return
-        # if len(self.__mining_new_blocks) == 0 and len(self.__new_transactions) >= config.BLOCK_TXNS_MAX_THRESHHOLD:
-        # self.__generate_block()
+        # if (
+        #     len(self.__mining_new_blocks) == 0
+        #     and len(self.__new_transactions) >= config.BLOCK_TXNS_MAX_THRESHHOLD
+        # ):
+        #     self.__generate_block()
 
     def __mine_block_start(self, block: Block):
         delay = expon_distribution(self.avg_interval_time / self.cpu_power)
@@ -263,7 +278,7 @@ class PrivateBlockChain:
         Broadcast a block to all connected peers.
         """
         self.__mining_new_blocks.remove(block)
-        if block.prev_block == self.__longest_chain_leaf and self.__validate_block(
+        if block.prev_block == self.__current_parent_block and self.__validate_block(
             block
         ):
             logger.info(
@@ -272,8 +287,17 @@ class PrivateBlockChain:
             block.transactions.append(
                 CoinBaseTransaction(self.__peer_id, block.timestamp)
             )
-            self.add_block(block)
             self.secret_blocks.append(block)
+            self.add_block(block)
+            new_event = Event(
+                EventType.BLOCK_MINE_SUCCESS,
+                simulation.clock,
+                0,
+                self.__mine_success_handler,
+                (block,),
+                f"{self.__peer_id}->* broadcast {block}",
+            )
+            simulation.enqueue(new_event)
             # if len(self.__blocks) > config.MAX_NUM_BLOCKS:
             # simulation.stop_sim = True
         else:
@@ -282,6 +306,17 @@ class PrivateBlockChain:
             # self.generate_block()
         # logger.info("restarting block minining")
         self.__generate_block()
+
+    def __mine_success_handler(self, block: Block):
+        new_event = Event(
+            EventType.BLOCK_BROADCAST,
+            simulation.clock,
+            0,
+            self.__broadcast_block,
+            (block,),
+            f"{self.__peer_id}->* broadcast {block}",
+        )
+        simulation.enqueue(new_event)
 
     def __generate_block(self) -> Block:
         """
@@ -292,7 +327,8 @@ class PrivateBlockChain:
         # if len(self.secret_blocks):
         # parent_block = self.secret_blocks[-1]
         # else:
-        parent_block = self.__longest_chain_leaf
+
+        parent_block = self.__current_parent_block
         balances_upto_block = self.__branch_balances[parent_block].copy()
         for transaction in self.__new_transactions:
             if balances_upto_block[transaction.from_id] < transaction.amount:
@@ -355,41 +391,54 @@ class PrivateBlockChain:
     def branch_lengths(self):
         return self.__branch_lengths
 
-    def set_longest_chain(self, block: Block):
-        self.__longest_chain_length = self.__branch_lengths[block]
-        self.__longest_chain_leaf = block
-
     def __update_lead(self, delta):
         old_lead = self.lead
         new_lead = old_lead + delta
         logger.debug("%s Lead change %s %s", self.peer_id, self.lead, delta)
         # self.__change_lead((self.lead, new_lead))
 
+        if delta == 0:
+            raise NotImplementedError("Lead change of 0 not implemented")
+
         if delta > 0:
             # self.generate_block()
             self.lead = new_lead
+            self.__current_parent_block = self.__secret_chain_leaf
+            return
 
-        elif old_lead > 2 and delta == -1:
+        # all below cases are for delta < 0 ie delta = -1
+        if old_lead > 2:
             block = self.secret_blocks.pop(0)
             self.publish_block(block)
+            self.__current_parent_block = self.__secret_chain_leaf
+
             new_lead -= 1
 
-        elif old_lead == 2 and delta == -1:
+        elif old_lead == 2:
             for block in self.secret_blocks:
                 self.publish_block(block)
             self.secret_blocks = []
+            self.__current_parent_block = self.__secret_chain_leaf
+
             new_lead = 0
 
-        elif old_lead == 1 and delta == -1:
+        elif old_lead == 1:
+            for block in self.secret_blocks:
+                self.publish_block(block)
+            self.secret_blocks = []
+            self.__current_parent_block = self.__secret_chain_leaf
             new_lead = -1
 
         elif old_lead == -1:
             new_lead = 0
+            new_block = self.__blocks[-1]
+            self.__current_parent_block = self.__blocks[-1]
 
-        else:
+        else:  # old_lead == 0
             for block in self.secret_blocks:
                 self.__blocks.remove(block)
             self.secret_blocks = []
+            self.__secret_chain_leaf = self.__longest_chain_leaf
             new_lead = 0
             self.__generate_block()
 

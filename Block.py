@@ -197,7 +197,8 @@ class BlockChain:
             logger.info(
                 "%s block_dropped %s previous block missing !!", self.peer_id, block
             )
-            self.__missing_parent_blocks.append(block)
+            if block not in self.__missing_parent_blocks:
+                self.__missing_parent_blocks.append(block)
             return False
         if block in self.__blocks:
             logger.info(
@@ -338,8 +339,11 @@ class BlockChain:
         self.__new_transactions.append(transaction)
         if transaction.from_id == self.__peer_id:
             return
-        # if len(self.__mining_new_blocks) == 0 and len(self.__new_transactions) >= config.BLOCK_TXNS_MAX_THRESHHOLD:
-        # self.__generate_block()
+        if (
+            len(self.__mining_new_blocks) == 0
+            and len(self.__new_transactions) >= config.BLOCK_TXNS_MAX_THRESHHOLD
+        ):
+            self.__generate_block()
 
     def __mine_block_start(self, block: Block):
         delay = expon_distribution(self.avg_interval_time / self.cpu_power)
@@ -370,10 +374,10 @@ class BlockChain:
             )
             self.__add_block(block)
             new_event = Event(
-                EventType.BLOCK_BROADCAST,
+                EventType.BLOCK_MINE_SUCCESS,
                 simulation.clock,
                 0,
-                self.__broadcast_block,
+                self.__mine_success_handler,
                 (block,),
                 f"{self.__peer_id}->* broadcast {block}",
             )
@@ -383,6 +387,17 @@ class BlockChain:
             logger.info("%s <%s> %s", self.__peer_id, EventType.BLOCK_MINE_FAIL, block)
         logger.info("restarting block minining")
         # self.__generate_block()
+
+    def __mine_success_handler(self, block: Block):
+        new_event = Event(
+            EventType.BLOCK_BROADCAST,
+            simulation.clock,
+            0,
+            self.__broadcast_block,
+            (block,),
+            f"{self.__peer_id}->* broadcast {block}",
+        )
+        simulation.enqueue(new_event)
 
     def __generate_block(self) -> Block:
         """

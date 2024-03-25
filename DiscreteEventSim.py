@@ -102,6 +102,7 @@ class Simulation:
         self.event_queue = PriorityQueue()
         self.__run_hooks = []
         self.stop_sim = False
+        self.force_stop = False
 
         self.blocks_created = 0
 
@@ -117,6 +118,15 @@ class Simulation:
         """
         Enqueue an event to the event queue.
         """
+        if self.stop_sim:
+            if event.type in [
+                EventType.BLOCK_BROADCAST,
+                EventType.BLOCK_SEND,
+                EventType.BLOCK_RECEIVE,
+                EventType.BLOCK_ACCEPTED,
+            ]:
+                self.__enqueue(event)
+            return
         self.__enqueue(event)
 
     def reg_run_hooks(self, fn):
@@ -134,7 +144,7 @@ class Simulation:
 
     def __run_event(self, event):
         self.__execute_run_hooks(event)
-        if self.stop_sim:
+        if self.force_stop:
             return
         if event.type in [EventType.TXN_SEND, EventType.BLOCK_SEND]:
             logger.debug("Running: %s", event)
@@ -144,7 +154,7 @@ class Simulation:
         event.action(*event.payload)
 
     def __run_loop(self):
-        while not self.event_queue.empty() and not self.stop_sim:
+        while not self.event_queue.empty() and not self.force_stop:
             next_event = self.event_queue.get()
             if next_event.is_cancelled:
                 continue
