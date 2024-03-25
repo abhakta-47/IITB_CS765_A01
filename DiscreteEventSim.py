@@ -14,28 +14,36 @@ logger = logging.getLogger(__name__)
 
 
 class EventType(Enum):
-    TXN_CREATE = 'TXN_CREATED'
-    TXN_SEND = 'TXN_SENT'
-    TXN_RECEIVE = 'TXN_RECEIVED'
-    TXN_BROADCAST = 'TXN_BROADCASTED'
+    TXN_CREATE = "TXN_CREATED"
+    TXN_SEND = "TXN_SENT"
+    TXN_RECEIVE = "TXN_RECEIVED"
+    TXN_BROADCAST = "TXN_BROADCASTED"
 
-    BLOCK_CREATE = 'BLOCK_CREATED'
-    BLOCK_SEND = 'BLOCK_SENT'
-    BLOCK_RECEIVE = 'BLOCK_RECEIVED'
-    BLOCK_BROADCAST = 'BLOCK_BROADCASTED'
-    BLOCK_ACCEPTED = 'BLOCK_ACCEPTED'  # BLOCK VALIDATED, ACCEPTED INTO BLOCKCHAIN
+    BLOCK_CREATE = "BLOCK_CREATED"
+    BLOCK_SEND = "BLOCK_SENT"
+    BLOCK_RECEIVE = "BLOCK_RECEIVED"
+    BLOCK_BROADCAST = "BLOCK_BROADCASTED"
+    BLOCK_ACCEPTED = "BLOCK_ACCEPTED"  # BLOCK VALIDATED, ACCEPTED INTO BLOCKCHAIN
 
-    BLOCK_MINE_START = 'BLOCK_MINE_STARTED'
-    BLOCK_MINE_FINISH = 'BLOCK_MINE_FINISHED'
-    BLOCK_MINE_SUCCESS = 'BLOCK_MINE_SUCCESSFUL'
-    BLOCK_MINE_FAIL = 'BLOCK_MINE_FAILED'
+    BLOCK_MINE_START = "BLOCK_MINE_STARTED"
+    BLOCK_MINE_FINISH = "BLOCK_MINE_FINISHED"
+    BLOCK_MINE_SUCCESS = "BLOCK_MINE_SUCCESSFUL"
+    BLOCK_MINE_FAIL = "BLOCK_MINE_FAILED"
 
     def __str__(self):
         return f"{self.value}"
 
 
 class Event:
-    def __init__(self, event_type: EventType, created_at, delay, action, payload, meta_description=""):
+    def __init__(
+        self,
+        event_type: EventType,
+        created_at,
+        delay,
+        action,
+        payload,
+        meta_description="",
+    ):
         self.id = UITLS.generate_random_id(6)
         self.type: EventType = event_type  # type of the event
         self.created_at = created_at  # when it is created
@@ -46,10 +54,11 @@ class Event:
         self.log_message = ""  # log message
         # additional information about the event
         self.meta_description = meta_description
+        self.is_cancelled = False
 
         self.owner = "nan"
         try:
-            caller_class = inspect.currentframe().f_back.f_locals['self']
+            caller_class = inspect.currentframe().f_back.f_locals["self"]
             self.owner = caller_class
             caller_class_name = caller_class.__class__.__name__
             if caller_class_name == "BlockChain":
@@ -58,7 +67,7 @@ class Event:
                 self.owner = f"{caller_class.from_peer}->{caller_class.to_peer}"
         except Exception:
             try:
-                self.owner = inspect.currentframe().f_back.f_locals['module']
+                self.owner = inspect.currentframe().f_back.f_locals["module"]
             except Exception:
                 pass
 
@@ -68,19 +77,23 @@ class Event:
     def __lt__(self, other):
         return self.actionable_at < other.actionable_at
 
-    @ property
+    @property
     def created_at_formatted(self):
         return format(round(self.created_at, 6), ",")
 
-    @ property
+    @property
     def actionable_at_formatted(self):
         return format(round(self.actionable_at, 6), ",")
 
     def description(self):
-        return f"📆({self.id} 🔀:{self.type} 👷:{self.owner} ⏰️:{self.created_at_formatted}-{self.actionable_at_formatted} 📦:{self.payload}) 📝:\"{self.meta_description}\""
+        return f'📆({self.id} 🔀:{self.type} 👷:{self.owner} ⏰️:{self.created_at_formatted}-{self.actionable_at_formatted} 📦:{self.payload}) 📝:"{self.meta_description}"'
 
     def __repr__(self) -> str:
         return f"📆(🔀:{self.type} 👷:{self.owner} ⏰️:{self.created_at_formatted}-{self.actionable_at_formatted} 📦:{self.payload})"
+
+    def cancel(self):
+        """cancel the event from the event queue."""
+        self.is_cancelled = True
 
 
 class Simulation:
@@ -90,27 +103,32 @@ class Simulation:
         self.__run_hooks = []
         self.stop_sim = False
 
+        self.blocks_created = 0
+
+    def count_block_creation(self):
+        self.blocks_created += 1
+
     def __enqueue(self, event):
         self.event_queue.put(event)
         # logger.debug("Scheduled: %s", event)
         # logger.info(f"Event payload: {event.payload}\n")
 
     def enqueue(self, event):
-        '''
+        """
         Enqueue an event to the event queue.
-        '''
+        """
         self.__enqueue(event)
 
     def reg_run_hooks(self, fn):
-        '''
+        """
         Register a function to be called before running an event.
-        '''
+        """
         self.__run_hooks.append(fn)
 
     def __execute_run_hooks(self, event):
-        '''
+        """
         Run hooks for the event.
-        '''
+        """
         for hook in self.__run_hooks:
             hook(event)
 
@@ -128,13 +146,15 @@ class Simulation:
     def __run_loop(self):
         while not self.event_queue.empty() and not self.stop_sim:
             next_event = self.event_queue.get()
+            if next_event.is_cancelled:
+                continue
             self.clock = next_event.actionable_at
             self.__run_event(next_event)
 
     def run(self):
-        '''
+        """
         Start the simulation.
-        '''
+        """
         # self.is_running = True
         # self.__dequeue_timer()
         self.__run_loop()

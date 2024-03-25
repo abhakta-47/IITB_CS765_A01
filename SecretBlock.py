@@ -6,117 +6,14 @@ from Transaction import Transaction, CoinBaseTransaction
 import logging
 
 from DiscreteEventSim import simulation, Event, EventType
+from Block import GENESIS_BLOCK, Block
 import config
 from utils import expon_distribution, generate_random_id
 
 logger = logging.getLogger(__name__)
 
 
-class Block:
-
-    def __init__(
-        self,
-        prev_block,
-        transactions: list[Transaction],
-        timestamp: float,
-        miner: Any = None,
-        is_private: bool = False,
-        id: int = None,
-    ):
-        if id:
-            self.block_id: int = id
-        else:
-            self.block_id: int = generate_random_id(4)
-        self.prev_block: "Block" = prev_block
-        self.transactions: list[Transaction] = transactions
-        self.timestamp: float = timestamp
-        self.miner: Any = miner
-        self.is_private: bool = is_private
-
-        self.prev_block_hash = hash(prev_block) if prev_block else None
-
-        logger.info(f"{self} <{EventType.BLOCK_CREATE}> {self.description()}")
-
-    @property
-    def header(self) -> str:
-        if self.block_id == 0:
-            return hash("genesis block")
-        if self.transactions == []:
-            transaction_ids = "no transactions"
-        else:
-            transaction_ids = reduce(
-                lambda a, b: a + b, map(lambda x: x.txn_id, self.transactions)
-            )
-        return (
-            f"{self.block_id}-{self.prev_block_hash}-{self.timestamp}-{transaction_ids}"
-        )
-
-    @property
-    def num_txns(self) -> int:
-        return len(self.transactions)
-
-    def __hash__(self) -> int:
-        return hash(self.header)
-
-    def __repr__(self) -> str:
-        return f"Block(id={self.block_id})"
-
-    @property
-    def __dict__(self) -> dict:
-        dict_obj = {
-            "self": self.__repr__(),
-            "block_id": self.block_id,
-            "prev_block": "",
-            "self_hash": self.__hash__(),
-            "num_txns": self.num_txns,
-            "transactions": sorted(
-                list(map(lambda x: x.__dict__, self.transactions)),
-                key=lambda x: x["txn_id"],
-            ),
-            "timestamp": self.timestamp,
-            "prev_block_hash": self.prev_block_hash,
-            "miner": self.miner.__repr__(),
-            "is_private": self.is_private,
-        }
-        if self.prev_block:
-            dict_obj.update(
-                {
-                    "prev_block": {
-                        "id": self.prev_block.block_id,
-                        "hash": self.prev_block.__hash__(),
-                    }
-                }
-            )
-        return dict_obj
-
-    def description(self) -> str:
-        """
-        detailed description of block
-        """
-        return f"Block id:{self.block_id} 󰔛:{self.timestamp} prev_block:{self.prev_block} txns:{self.transactions} miner:{self.miner}"
-
-    @property
-    def size(self) -> int:
-        """
-        size in kB
-        """
-        return len(self.transactions) + 1
-
-
-def gen_genesis_block():
-    """
-    Generate genesis block
-    """
-    genesis_block = Block(None, [], 0)
-    genesis_block.block_id = "gen_blk"
-    return genesis_block
-
-
-GENESIS_BLOCK = gen_genesis_block()
-
-
-class BlockChain:
-
+class PrivateBlockChain:
     def __init__(
         self,
         cpu_power: float,
@@ -142,7 +39,11 @@ class BlockChain:
         self.avg_interval_time = config.AVG_BLOCK_MINING_TIME
         self.cpu_power: float = cpu_power
 
+        self.secret_blocks: list[Block] = []
+        self.lead: int = 0
+
         self.__init_genesis_block(peers)
+        self.__generate_block()
 
     @property
     def __dict__(self) -> dict:
@@ -317,7 +218,7 @@ class BlockChain:
         self.__add_block(block)
 
         chain_len_upto_block = self.__branch_lengths[block]
-        self.__validate_saved_blocks()
+        # self.__validate_saved_blocks()
         if chain_len_upto_block > self.__longest_chain_length:
             logger.debug(
                 "%s <longest_chain> %s %s generating new block !!",
@@ -327,7 +228,10 @@ class BlockChain:
             )
             self.__longest_chain_length = chain_len_upto_block
             self.__longest_chain_leaf = block
-            self.__generate_block()
+            if block.miner != self.__peer_id:
+                self.__update_lead(-1)
+            else:
+                self.__update_lead(1)
 
     def add_transaction(self, transaction: Transaction) -> bool:
         """
@@ -368,21 +272,16 @@ class BlockChain:
             block.transactions.append(
                 CoinBaseTransaction(self.__peer_id, block.timestamp)
             )
-            self.__add_block(block)
-            new_event = Event(
-                EventType.BLOCK_BROADCAST,
-                simulation.clock,
-                0,
-                self.__broadcast_block,
-                (block,),
-                f"{self.__peer_id}->* broadcast {block}",
-            )
-            simulation.enqueue(new_event)
+            self.add_block(block)
+            self.secret_blocks.append(block)
+            # if len(self.__blocks) > config.MAX_NUM_BLOCKS:
+            # simulation.stop_sim = True
         else:
             # no longer longest chain
             logger.info("%s <%s> %s", self.__peer_id, EventType.BLOCK_MINE_FAIL, block)
-        logger.info("restarting block minining")
-        # self.__generate_block()
+            # self.generate_block()
+        # logger.info("restarting block minining")
+        self.__generate_block()
 
     def __generate_block(self) -> Block:
         """
@@ -390,7 +289,11 @@ class BlockChain:
         """
         sorted(self.__new_transactions, key=lambda x: x.timestamp)
         valid_transactions_for_longest_chain = []
-        balances_upto_block = self.__branch_balances[self.__longest_chain_leaf].copy()
+        # if len(self.secret_blocks):
+        # parent_block = self.secret_blocks[-1]
+        # else:
+        parent_block = self.__longest_chain_leaf
+        balances_upto_block = self.__branch_balances[parent_block].copy()
         for transaction in self.__new_transactions:
             if balances_upto_block[transaction.from_id] < transaction.amount:
                 continue
@@ -403,10 +306,11 @@ class BlockChain:
         # return
 
         new_block = Block(
-            self.__longest_chain_leaf,
+            parent_block,
             valid_transactions_for_longest_chain,
             simulation.clock,
             self.__peer_id,
+            True,
         )
         self.__mining_new_blocks.append(new_block)
         new_event = Event(
@@ -419,9 +323,6 @@ class BlockChain:
         )
         simulation.enqueue(new_event)
 
-    def generate_block(self):
-        self.__generate_block()
-
     def __get_longest_chain(self):
         chain = []
         cur_chain = self.__longest_chain_leaf
@@ -430,9 +331,14 @@ class BlockChain:
             cur_chain = cur_chain.prev_block
         return chain
 
-    def flush_blocks(self):
-        for block in self.__blocks:
-            self.publish_block(block)
+    def validate_block(self, block: Block) -> bool:
+        return self.__validate_block(block)
+
+    def add_block_core(self, block: Block):
+        self.__add_block(block)
+
+    def override_mine_end_handler(self, fn):
+        self.__mine_block_end_handler = fn
 
     def publish_block(self, block: Block):
         new_event = Event(
@@ -444,3 +350,54 @@ class BlockChain:
             f"{self.__peer_id}->* broadcast {block}",
         )
         simulation.enqueue(new_event)
+
+    @property
+    def branch_lengths(self):
+        return self.__branch_lengths
+
+    def set_longest_chain(self, block: Block):
+        self.__longest_chain_length = self.__branch_lengths[block]
+        self.__longest_chain_leaf = block
+
+    def __update_lead(self, delta):
+        old_lead = self.lead
+        new_lead = old_lead + delta
+        logger.debug("%s Lead change %s %s", self.peer_id, self.lead, delta)
+        # self.__change_lead((self.lead, new_lead))
+
+        if delta > 0:
+            # self.generate_block()
+            self.lead = new_lead
+
+        elif old_lead > 2 and delta == -1:
+            block = self.secret_blocks.pop(0)
+            self.publish_block(block)
+            new_lead -= 1
+
+        elif old_lead == 2 and delta == -1:
+            for block in self.secret_blocks:
+                self.publish_block(block)
+            self.secret_blocks = []
+            new_lead = 0
+
+        elif old_lead == 1 and delta == -1:
+            new_lead = -1
+
+        elif old_lead == -1:
+            new_lead = 0
+
+        else:
+            for block in self.secret_blocks:
+                self.__blocks.remove(block)
+            self.secret_blocks = []
+            new_lead = 0
+            self.__generate_block()
+
+        self.lead = new_lead
+
+    def flush_blocks(self):
+        for block in self.__blocks:
+            self.publish_block(block)
+
+    def generate_block(self):
+        return self.__generate_block()
