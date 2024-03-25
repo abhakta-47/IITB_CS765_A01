@@ -128,6 +128,8 @@ def update_progressbars(pbar_txns, pbar_blocks, event):
 
 if __name__ == "__main__":
 
+    clear_dir("frames")
+
     peers_network = create_network(NUMBER_OF_PEERS)
     logger.info("Network created")
     print("Network created")

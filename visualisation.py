@@ -20,46 +20,49 @@ def draw_graph(peers):
     plt.show()
 
 
+def visualize_peer(peer, save_path):
+    block_chain = peer["block_chain"]
+    peer_id = peer["id"]
+    G = pgv.AGraph(strict=False, directed=True, rankdir="LR")
+    G.graph_attr["label"] = f"Peer {peer_id} description: {peer['cpu_net_description']}"
+    G.node_attr["shape"] = "rectangle"
+    selfish_peer1 = None
+    for block in block_chain["blocks"]:
+        label = f'{block["block_id"]}\n #txns: {len(block["transactions"])}\n timestamp: {round(block["timestamp"],2)}'
+        if block["block_id"] != "gen_blk":
+            label = (
+                label
+                + f'\n prev_hash: {block["prev_block"]["hash"]} \n miner: {block["miner"]}'
+            )
+        if block["self"] in block_chain["longest_chain"]:
+            G.add_node(block["block_id"], color="green", label=label)
+        elif block["block_id"] == "gen_blk":
+            G.add_node(block["block_id"], color="blue", label=label)
+        else:
+            G.add_node(block["block_id"], label=label)
+        if block["is_private"]:
+            G.get_node(block["block_id"]).attr["color"] = "red"
+            if selfish_peer1 is None:
+                selfish_peer1 = block["miner"]
+            if selfish_peer1 == block["miner"]:
+                G.get_node(block["block_id"]).attr["style"] = "dashed"
+    for block in block_chain["blocks"]:
+        if block["prev_block"] == "":
+            continue
+        prev_block = block["prev_block"]
+        if block["self"] in block_chain["longest_chain"]:
+            G.add_edge(prev_block["id"], block["block_id"], color="green")
+        else:
+            G.add_edge(prev_block["id"], block["block_id"])
+    G.draw(save_path, prog="dot")
+
+
 def visualize(results):
     create_directory("graphs")
     num_peers = len(results["peers"])
     for peer in results["peers"]:
-        block_chain = peer["block_chain"]
         peer_id = peer["id"]
-        G = pgv.AGraph(strict=False, directed=True, rankdir="LR")
-        G.graph_attr["label"] = (
-            f"Peer {peer_id} description: {peer['cpu_net_description']}"
-        )
-        G.node_attr["shape"] = "rectangle"
-        selfish_peer1 = None
-        for block in block_chain["blocks"]:
-            label = f'{block["block_id"]}\n #txns: {len(block["transactions"])}\n timestamp: {round(block["timestamp"],2)}'
-            if block["block_id"] != "gen_blk":
-                label = (
-                    label
-                    + f'\n prev_hash: {block["prev_block"]["hash"]} \n miner: {block["miner"]}'
-                )
-            if block["self"] in block_chain["longest_chain"]:
-                G.add_node(block["block_id"], color="green", label=label)
-            elif block["block_id"] == "gen_blk":
-                G.add_node(block["block_id"], color="blue", label=label)
-            else:
-                G.add_node(block["block_id"], label=label)
-            if block["is_private"]:
-                G.get_node(block["block_id"]).attr["color"] = "red"
-                if selfish_peer1 is None:
-                    selfish_peer1 = block["miner"]
-                if selfish_peer1 == block["miner"]:
-                    G.get_node(block["block_id"]).attr["style"] = "dashed"
-        for block in block_chain["blocks"]:
-            if block["prev_block"] == "":
-                continue
-            prev_block = block["prev_block"]
-            if block["self"] in block_chain["longest_chain"]:
-                G.add_edge(prev_block["id"], block["block_id"], color="green")
-            else:
-                G.add_edge(prev_block["id"], block["block_id"])
-        G.draw(f"graphs/peer_{peer_id}.svg", prog="dot")
+        visualize_peer(peer, f"graphs/peer_{peer_id}.svg")
 
 
 if __name__ == "__main__":

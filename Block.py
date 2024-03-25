@@ -8,6 +8,7 @@ import logging
 from DiscreteEventSim import simulation, Event, EventType
 import config
 from utils import expon_distribution, generate_random_id
+from visualisation import visualize_peer
 
 logger = logging.getLogger(__name__)
 
@@ -298,6 +299,19 @@ class BlockChain:
         self.__update_block_arrival_time(block)
         self.__update_avg_interval_time(block)
         self.__update_branch_transactions(block)
+        self.plot_frame()
+
+    def plot_frame(self):
+        peer_json = self.peer_id.__dict__
+        if not hasattr(self, "frame"):
+            self.frame = 0
+        self.frame += 1
+        import os
+
+        os.makedirs(f"frames/peer_{self.peer_id.id}", exist_ok=True)
+        visualize_peer(
+            peer_json, f"frames/peer_{self.peer_id.id}/{str(self.frame).zfill(3)}.svg"
+        )
 
     def __validate_saved_blocks(self):
         remove_blocks = []
