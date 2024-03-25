@@ -32,7 +32,6 @@ class PrivateBlockChain:
         self.__longest_chain_length: int = 0
         self.__longest_chain_leaf: Block = None
 
-        self.__secret_chain_length: int = 0
         self.__secret_chain_leaf: Block = None
 
         self.__current_parent_block: Block = None
@@ -241,11 +240,10 @@ class PrivateBlockChain:
 
         if block.miner == self.__peer_id:
             self.__secret_chain_leaf = block
-            self.__secret_chain_length = self.__branch_lengths[block]
             self.__update_lead(1)
         elif self.__longest_chain_length < self.__branch_lengths[block]:
-            self.__public_chain_leaf = block
             self.__longest_chain_length = self.__branch_lengths[block]
+            self.__longest_chain_leaf = block
             # logger.debug(
             #     "%s <longest_chain> %s %s generating new block !!",
             #     self.__peer_id,
@@ -253,7 +251,6 @@ class PrivateBlockChain:
             #     str(chain_len_upto_block),
             # )
             # self.__longest_chain_length = chain_len_upto_block
-            # self.__longest_chain_leaf = block
             # if block.miner != self.__peer_id:
             self.__update_lead(-1)
             # else:
