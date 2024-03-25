@@ -50,6 +50,11 @@ def create_network(n: int) -> list[Peer]:
     ]
     peers.append(SelfishPeer(id=n - 2, is_slow_network=False, cpu_power=config.Z1))
     peers.append(SelfishPeer(id=n - 1, is_slow_network=False, cpu_power=config.Z2))
+    peers[-2].id = "S01"
+    peers[-1].id = "S02"
+
+    # mix peers
+    random.shuffle(peers)
 
     for peer in peers:
         peer.init_blockchain(peers=peers)

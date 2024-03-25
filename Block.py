@@ -108,7 +108,7 @@ def gen_genesis_block():
     """
     Generate genesis block
     """
-    genesis_block = Block(None, [], 0)
+    genesis_block = Block(None, [], 0, "none")
     genesis_block.block_id = "gen_blk"
     return genesis_block
 
@@ -299,7 +299,7 @@ class BlockChain:
         self.__update_block_arrival_time(block)
         self.__update_avg_interval_time(block)
         self.__update_branch_transactions(block)
-        self.plot_frame()
+        # self.plot_frame()
 
     def plot_frame(self):
         peer_json = self.peer_id.__dict__
@@ -432,10 +432,11 @@ class BlockChain:
         # return
 
         new_block = Block(
-            self.__longest_chain_leaf,
-            valid_transactions_for_longest_chain,
-            simulation.clock,
-            self.__peer_id,
+            prev_block=self.__longest_chain_leaf,
+            transactions=valid_transactions_for_longest_chain,
+            timestamp=simulation.clock,
+            miner=self.__peer_id,
+            is_private=False,
         )
         self.__mining_new_blocks.append(new_block)
         new_event = Event(
@@ -473,3 +474,9 @@ class BlockChain:
             f"{self.__peer_id}->* broadcast {block}",
         )
         simulation.enqueue(new_event)
+
+    def get_longest_chain(self) -> list[Block]:
+        return self.__get_longest_chain()
+
+    def get_blocks(self) -> list[Block]:
+        return self.__blocks

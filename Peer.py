@@ -29,6 +29,8 @@ class Peer:
         self.neighbours: dict["Peer", any] = {}
         self.neighbours_meta: dict["Peer", Link] = {}
         self.cpu_power: float = cpu_power
+        self.block_chain: BlockChain = None
+        self.type = "HonestPeer"
 
         self.forwarded_messages: list[Union[Transaction, Block]] = []
 
@@ -53,6 +55,7 @@ class Peer:
     def __dict__(self) -> dict:
         return {
             "id": self.id,
+            "name": self.__repr__(),
             "cpu_power": self.cpu_power,
             "is_slow_network": self.is_slow_network,
             "is_slow_cpu": self.is_slow_cpu,
@@ -63,6 +66,7 @@ class Peer:
             ],
             "block_chain": self.block_chain.__dict__,
             "cpu_net_description": self.cpu_net_description,
+            "type": self.type,
         }
 
     def description(self) -> str:
@@ -186,6 +190,7 @@ class SelfishPeer(Peer):
 
     def __init__(self, id, is_slow_network=False, cpu_power=0):
         super().__init__(id, cpu_power, is_slow_network, False)
+        self.type = "SelfishPeer"
 
     def description(self) -> str:
         return f"SelfishPeer(id={self.id} cpu_power={self.cpu_power} is_slow_network={self.is_slow_network} is_slow_cpu={self.is_slow_cpu})"

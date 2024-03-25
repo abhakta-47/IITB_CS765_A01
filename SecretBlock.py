@@ -206,7 +206,7 @@ class PrivateBlockChain:
         self.__update_block_arrival_time(block)
         self.__update_avg_interval_time(block)
         self.__update_branch_transactions(block)
-        self.plot_frame()
+        # self.plot_frame()
 
     def plot_frame(self):
         peer_json = self.peer_id.__dict__
@@ -356,11 +356,11 @@ class PrivateBlockChain:
         # return
 
         new_block = Block(
-            parent_block,
-            valid_transactions_for_longest_chain,
-            simulation.clock,
-            self.__peer_id,
-            True,
+            prev_block=parent_block,
+            transactions=valid_transactions_for_longest_chain,
+            timestamp=simulation.clock,
+            miner=self.__peer_id,
+            is_private=True,
         )
         self.__mining_new_blocks.append(new_block)
         new_event = Event(
@@ -373,13 +373,18 @@ class PrivateBlockChain:
         )
         simulation.enqueue(new_event)
 
-    def __get_longest_chain(self):
+    def __get_chain(self, block):
         chain = []
-        cur_chain = self.__longest_chain_leaf
-        while cur_chain.prev_block:
-            chain.append(cur_chain)
-            cur_chain = cur_chain.prev_block
+        cur_block = block
+        while cur_block:
+            chain.append(cur_block)
+            cur_block = cur_block.prev_block
         return chain
+
+    def __get_longest_chain(self):
+        chain1 = self.__get_chain(self.__longest_chain_leaf)
+        chain2 = self.__get_chain(self.__secret_chain_leaf)
+        return chain1 if len(chain1) > len(chain2) else chain2
 
     def validate_block(self, block: Block) -> bool:
         return self.__validate_block(block)
@@ -464,3 +469,9 @@ class PrivateBlockChain:
 
     def generate_block(self):
         return self.__generate_block()
+
+    def get_longest_chain(self) -> list[Block]:
+        return self.__get_longest_chain()
+
+    def get_blocks(self) -> list[Block]:
+        return self.__blocks

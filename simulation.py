@@ -7,6 +7,8 @@ from tqdm import tqdm
 from logger import init_logger
 from network import is_connected, create_network, draw_graph
 from DiscreteEventSim import simulation, Event, EventType
+from Peer import Peer
+from Block import Block, BlockChain
 from utils import (
     expon_distribution,
     create_directory,
@@ -68,6 +70,51 @@ def schedule_transactions(peers):
     simulation.enqueue(new_block_event)
 
 
+def calculate_mpu_ratios(peers: list[Peer]):
+    """
+    Calculate the mining power unit ratios of the peers.
+    """
+
+    def calculate_mpu(peer: Peer):
+        """
+        Calculate the mining power unit of a peer.
+        """
+        block_chain: BlockChain = peer.block_chain
+        longest_chain_blocks = block_chain.get_longest_chain()
+        all_blocks = block_chain.get_blocks()
+
+        num_blocks_public_chain_by_peer = 0
+        for block in longest_chain_blocks:
+            if block.miner == peer:
+                num_blocks_public_chain_by_peer += 1
+        num_blocks_public_chain_by_all = len(longest_chain_blocks)
+
+        num_blocks_mined_by_peer = 0
+        for block in all_blocks:
+            if block.miner == peer:
+                num_blocks_mined_by_peer += 1
+        num_blocks_mined_by_all = len(all_blocks)
+
+        if num_blocks_mined_by_peer == 0:
+            mpu_adv = 0
+        else:
+            mpu_adv = num_blocks_public_chain_by_peer / num_blocks_mined_by_peer
+        mpu_overall = num_blocks_public_chain_by_all / num_blocks_mined_by_all
+
+        return {
+            "peer": peer.__repr__(),
+            "peer_id": peer.id,
+            "type": peer.type,
+            "mpu_adv": mpu_adv,
+            "mpu_overall": mpu_overall,
+        }
+
+    mpu_ratios = []
+    for peer in peers:
+        mpu_ratios.append(calculate_mpu(peer))
+    return mpu_ratios
+
+
 def export_data(peers):
     """
     Export data to a file
@@ -77,12 +124,14 @@ def export_data(peers):
     for peer in peers:
         json_data.append(peer.__dict__)
         raw_data.append(peer)
-    json_data = {"peers": json_data}
+    mpu_ratios = calculate_mpu_ratios(peers)
+    json_data = {"peers": json_data, "mpu_ratios": mpu_ratios}
 
     if CONFIG.SAVE_RESULTS:
         output_dir = f"output/{START_TIME}"
         create_directory(output_dir)
         copy_to_directory("blockchain_simulation.log", output_dir)
+        copy_to_directory("config.py", output_dir)
         change_directory(output_dir)
     clear_dir("graphs")
     with open("results.json", "w") as f:
