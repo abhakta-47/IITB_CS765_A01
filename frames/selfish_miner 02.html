@@ -6,11 +6,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SVG Navigation</title>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
         #svg-container {
             display: flex;
-            justify-content: center;
             align-items: center;
-            height: 90vh;
+            flex-grow: 1;
+            overflow: scroll;
+            padding: 10px;
+            margin: 10px;
         }
 
         #svg-img {
@@ -27,11 +38,12 @@
 
 <body>
     <div id="svg-container">
-        <img id="svg-img" src="./peer_S02/001.svg" alt="SVG Image">
+        <img id="svg-img" src="./peer_S02/001.svg" alt="End">
     </div>
     <div id="nav-buttons">
         <button id="prev-btn">Previous</button>
         <button id="next-btn">Next</button>
+        <p>arrow keys can also be used</p>
     </div>
 
     <script>

@@ -26,7 +26,8 @@ class BlockChainBase:
         self._new_transactions: list[Transaction] = []
         self._block_arrival_time: dict[Block, float] = {}
         self._broadcast_block: Any = broadcast_block_function
-        self._mining_new_blocks: list[Block] = []
+
+        self._current_mining_event: Event = None
 
         self._longest_chain_length: int = 0
         self._longest_chain_leaf: Block = None
@@ -211,6 +212,7 @@ class BlockChainBase:
         visualize_peer(
             peer_json, f"frames/peer_{self.peer_id.id}/{str(self.frame).zfill(3)}.svg"
         )
+        logger.debug("%s plotting frame %s", self.peer_id, self.frame)
 
     def _validate_saved_blocks(self):
         remove_blocks = []
@@ -231,7 +233,7 @@ class BlockChainBase:
         if transaction.from_id == self._peer_id:
             return
         if (
-            len(self._mining_new_blocks) == 0
+            not self._current_mining_event
             and len(self._new_transactions) >= CONFIG.BLOCK_TXNS_TARGET_THRESHOLD
         ):
             self._generate_block()
@@ -247,13 +249,14 @@ class BlockChainBase:
             (block,),
             f"mining block finished {block}",
         )
+        self._current_mining_event = mine_finish_event
         simulation.enqueue(mine_finish_event)
 
     def _mine_block_end(self, block: Block):
         """
         Broadcast a block to all connected peers.
         """
-        self._mining_new_blocks.remove(block)
+        self._current_mining_event = None
         if block.prev_block == self._current_parent_block and self._validate_block(
             block
         ):
@@ -281,6 +284,11 @@ class BlockChainBase:
     def _mine_fail_handler(self):
         raise NotImplementedError
 
+    def _cancel_mining(self):
+        """cancel current running mine event"""
+        if self._current_mining_event:
+            self._current_mining_event.cancel()
+
     def generate_block(self):
         self._generate_block()
 
@@ -295,6 +303,7 @@ class BlockChainBase:
     def flush_blocks(self):
         for block in self._blocks:
             self.publish_block(block)
+        self.plot_frame()
 
     def publish_block(self, block: Block):
         self._broadcast_block(block)

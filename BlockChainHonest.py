@@ -69,7 +69,6 @@ class HonestBlockChain(BlockChainBase):
             miner=self._peer_id,
             is_private=False,
         )
-        self._mining_new_blocks.append(new_block)
         self._mine_block_start(new_block)
 
     def _get_longest_chain(self):
