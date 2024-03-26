@@ -24,7 +24,7 @@ class PrivateBlockChain(BlockChainBase):
         self._current_parent_block: Block = None
 
         self.secret_blocks: list[Block] = []
-        self.lead: int = 0
+        self.state: int = 0
 
         self._current_parent_block = self._longest_chain_leaf
         self._generate_block()
@@ -42,11 +42,11 @@ class PrivateBlockChain(BlockChainBase):
 
         if block.miner == self._peer_id:
             self._secret_chain_leaf = block
-            self._update_lead(1)
+            self._update_lead()
         elif self._longest_chain_length < self._branch_length(block):
             self._longest_chain_length = self._branch_length(block)
             self._longest_chain_leaf = block
-            self._update_lead(-1)
+            self._update_lead()
         self.plot_frame()
 
     def _mine_success_handler(self, block: Block):
@@ -106,55 +106,82 @@ class PrivateBlockChain(BlockChainBase):
         self._current_parent_block = block
         self._generate_block()
 
-    def _update_lead(self, delta):
-        old_lead = self.lead
-        new_lead = old_lead + delta
+    def _calculate_new_lead(self):
+        secret_branch_len = self._branch_length(self._secret_chain_leaf)
+        public_branch_len = self._branch_length(self._longest_chain_leaf)
+        return secret_branch_len - public_branch_len
 
-        if delta == 0:
-            raise NotImplementedError("Lead change of 0 not implemented")
+    def _update_lead(self):
+        new_lead = self._calculate_new_lead()
+        old_state = self.state
 
-        if delta > 0:
-            # self.generate_block()
-            self.lead = new_lead
-            self._update_current_parent_block(self._secret_chain_leaf)
-            return
-
-        if delta < -1:
-            raise NotImplementedError
-
-        # all below cases are for delta < 0 ie delta = -1
-        if old_lead > 2:
-            block = self.secret_blocks.pop(0)
-            self.publish_block(block)
-            new_lead = old_lead - 1
-            self._update_current_parent_block(self._secret_chain_leaf)
-
-        elif old_lead == 2:
-            for block in self.secret_blocks:
-                self.publish_block(block)
-            self.secret_blocks = []
-            new_lead = 0
-            self._update_current_parent_block(self._secret_chain_leaf)
-
-        elif old_lead == 1:
-            for block in self.secret_blocks:
-                self.publish_block(block)
-            self.secret_blocks = []
-            new_lead = -1
-            self._update_current_parent_block(self._secret_chain_leaf)
-
-        elif old_lead == -1:
-            new_lead = 0
-            new_block = self._blocks[-1]
-            self._update_current_parent_block(new_block)
-
-        else:  # old_lead == 0
+        if new_lead < 0:
+            # reject the whole selfish branch
+            # start mining on public branch
+            # move to state 0
             for block in self.secret_blocks:
                 self._blocks.remove(block)
             self.secret_blocks = []
             self._secret_chain_leaf = self._longest_chain_leaf
-            new_lead = 0
+            self._update_current_parent_block(self._secret_chain_leaf)
+            self.state = 0
+
+        elif self.state == 0.5:
+            # current state is 0' and some block mined or received
+            new_block = self._blocks[-1]
+            if new_block.miner == self._peer_id:
+                # if mine successful publish it and mine on that
+                block = self.secret_blocks.pop(0)
+                self.publish_block(block)
+                self._update_current_parent_block(block)
+            else:
+                # else mine on the received block
+                self._update_current_parent_block(new_block)
+            self.state = 0
+
+        elif self.state == 0:
+            # current state is 0 and some block mined or received
+            # start mining on last mined or received block
+            new_block = self._blocks[-1]
+            self._update_current_parent_block(new_block)
+            if new_block.miner == self._peer_id:
+                self.state = 1
+            else:
+                self.state = 0
+
+        elif self.state == 1 and new_lead == 0:  # move to 0' state
+            for block in self.secret_blocks:
+                self.publish_block(block)
+            self.secret_blocks = []
+            self.state = 0.5
             self._update_current_parent_block(self._secret_chain_leaf)
 
-        logger.debug("%s Lead change %s %s", self.peer_id, self.lead, delta)
-        self.lead = new_lead
+        elif self.state == 2 and new_lead == 1:  # move to 0 state
+            for block in self.secret_blocks:
+                self.publish_block(block)
+            self.secret_blocks = []
+            self.state = 0
+            self._update_current_parent_block(self._secret_chain_leaf)
+
+        elif self.state > 2:
+            new_block = self._blocks[-1]
+            if new_block.miner == self._peer_id:
+                # go to t+1 state
+                self.state += 1
+            else:
+                # release one block and go to t-1 state
+                block = self.secret_blocks.pop(0)
+                self.publish_block(block)
+                self.state -= 1
+            self._update_current_parent_block(self._secret_chain_leaf)
+        else:
+            self._update_current_parent_block(self._secret_chain_leaf)
+            self.state = new_lead
+
+        logger.debug(
+            "%s state change %s -> %s lead: %s",
+            self.peer_id,
+            old_state,
+            self.state,
+            new_lead,
+        )

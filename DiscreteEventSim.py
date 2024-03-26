@@ -137,10 +137,7 @@ class Simulation:
         """
         if self.stop_sim:
             if event.type in [
-                EventType.BLOCK_BROADCAST,
-                EventType.BLOCK_SEND,
                 EventType.BLOCK_RECEIVE,
-                EventType.BLOCK_ACCEPTED,
             ]:
                 self.__enqueue(event)
             return
@@ -168,6 +165,11 @@ class Simulation:
             logger.debug("Details: %s", event.description())
         else:
             logger.info("Running: %s", event)
+
+        if self.stop_sim and event.type == EventType.BLOCK_RECEIVE:
+            event.action(*event.payload)
+            return
+
         event.action(*event.payload)
 
     def __run_loop(self):

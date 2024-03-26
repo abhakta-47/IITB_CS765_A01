@@ -30,7 +30,7 @@ def visualize_peer(peer, save_path):
     )
     G.graph_attr["label"] = f"Peer {peer_id} description: {peer['cpu_net_description']}"
     G.node_attr["shape"] = "circle"
-    G.node_attr["style"] = "filled"
+    G.node_attr["style"] = "filled, solid"
     G.node_attr["width"] = 0.1
 
     for block in block_chain["blocks"]:
@@ -40,20 +40,21 @@ def visualize_peer(peer, save_path):
                 label
                 + f'\n prev_hash: {block["prev_block"]["hash"]} \n miner: {block["miner"]}'
             )
-        if block["self"] in block_chain["longest_chain"]:
-            G.add_node(block["block_id"], color="green", label="")
+        if "S01" in block["miner"]:
+            G.add_node(block["block_id"], fillcolor="red", label="", tooltip=label)
+        elif "S02" in block["miner"]:
+            G.add_node(block["block_id"], fillcolor="orange", label="", tooltip=label)
         elif block["block_id"] == "gen_blk":
-            G.add_node(block["block_id"], color="blue", label="")
+            G.add_node(block["block_id"], fillcolor="blue", label="", tooltip=label)
         else:
-            G.add_node(block["block_id"], label="")
+            G.add_node(block["block_id"], label="", tooltip=label)
+
+        if block["self"] in block_chain["longest_chain"]:
+            G.add_node(block["block_id"], color="green", label="", tooltip=label)
+
         if block["is_private"]:
             G.get_node(block["block_id"]).attr["shape"] = "diamond"
             G.get_node(block["block_id"]).attr["height"] = 0.2
-        if "SelfishPeer" in block["miner"]:
-            if "S01" in block["miner"]:
-                G.get_node(block["block_id"]).attr["color"] = "red"
-            else:
-                G.get_node(block["block_id"]).attr["color"] = "orange"
     for block in block_chain["blocks"]:
         if block["prev_block"] == "":
             continue

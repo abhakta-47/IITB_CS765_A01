@@ -12,9 +12,9 @@ import logging
 def init_logger():
     logging.basicConfig(
         level=logging.DEBUG,
-        stream=sys.stdout,
-        # filename="blockchain_simulation.log",
-        # filemode="w",
+        # stream=sys.stdout,
+        filename="blockchain_simulation.log",
+        filemode="w",
         format="%(asctime)s - %(levelname)s - %(funcName)s - %(message)s",
         datefmt="%H:%M:%S",
     )

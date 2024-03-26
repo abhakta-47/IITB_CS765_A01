@@ -17,6 +17,7 @@ from utils import (
     change_directory,
     copy_to_directory,
     clear_dir,
+    delete_pattern,
 )
 from visualisation import visualize
 
@@ -182,13 +183,14 @@ def update_progressbars(pbar_txns, pbar_blocks, event):
         pbar_blocks.update(1)
 
     if successful_blocks_mined > CONFIG.MAX_NUM_BLOCKS:
+        for peer in peers_network:
+            peer.flush_blocks()
         simulation.stop_sim = True
 
 
 if __name__ == "__main__":
 
-    clear_dir("frames/peer_S01")
-    clear_dir("frames/peer_S02")
+    delete_pattern("frames/peer_*")
 
     peers_network = create_network(CONFIG.NUMBER_OF_PEERS)
     logger.info("Network created")
@@ -214,10 +216,13 @@ if __name__ == "__main__":
         simulation.force_stop = True
     finally:
         for peer in peers_network:
-            peer.flush_blocks()
+            peer.block_chain._panic_validate_saved_blocks()
         pbar_txns.close()
         pbar_blocks.close()
         print("Simulation ended")
+
+        for peer in peers_network:
+            peer.block_chain.plot_frame()
 
         export_data(peers_network)
         logger.info("Data exported")

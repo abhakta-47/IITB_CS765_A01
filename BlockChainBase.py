@@ -191,6 +191,10 @@ class BlockChainBase:
         self._update_block_arrival_time(block)
         # self._update_avg_interval_time(block)
         # self.plot_frame()
+        logger.info("%s %s added", self.peer_id, block)
+
+    def add_block(self, block: Block):
+        raise NotImplementedError
 
     def _get_longest_chain(self) -> list[Block]:
         raise NotImplementedError
@@ -214,6 +218,9 @@ class BlockChainBase:
         )
         logger.debug("%s plotting frame %s", self.peer_id, self.frame)
 
+    def missing_parent_count(self):
+        return len(self._missing_parent_blocks)
+
     def _validate_saved_blocks(self):
         remove_blocks = []
         for block in self._missing_parent_blocks:
@@ -222,6 +229,12 @@ class BlockChainBase:
                 self._add_block(block)
         for block in remove_blocks:
             self._missing_parent_blocks.remove(block)
+
+    def _panic_validate_saved_blocks(self):
+        sorted(self._missing_parent_blocks, key=lambda x: x.timestamp, reverse=True)
+        for block in self._missing_parent_blocks:
+            if self._validate_block(block):
+                self._add_block(block)
 
     def add_transaction(self, transaction: Transaction) -> bool:
         """
@@ -303,7 +316,6 @@ class BlockChainBase:
     def flush_blocks(self):
         for block in self._blocks:
             self.publish_block(block)
-        self.plot_frame()
 
     def publish_block(self, block: Block):
         self._broadcast_block(block)

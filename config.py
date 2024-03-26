@@ -1,7 +1,7 @@
 NUMBER_OF_PEERS = 20  # n
-Z1 = 0.7  # zeta1
+Z1 = 0.3  # zeta1
 Z2 = 0.2  # zeta2
-AVG_TXN_INTERVAL_TIME = 10  # Ttx
+AVG_TXN_INTERVAL_TIME = 100  # Ttx
 
 
 ## below parameters are unchanged for all the experiments
