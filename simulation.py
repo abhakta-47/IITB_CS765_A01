@@ -183,8 +183,11 @@ def update_progressbars(pbar_txns, pbar_blocks, event):
         pbar_blocks.update(1)
 
     if successful_blocks_mined > CONFIG.MAX_NUM_BLOCKS:
+        if simulation.stop_sim:
+            return
         for peer in peers_network:
             peer.flush_blocks()
+        print("Flushed blocks")
         simulation.stop_sim = True
 
 

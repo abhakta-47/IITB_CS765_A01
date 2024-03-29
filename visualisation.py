@@ -49,8 +49,8 @@ def visualize_peer(peer, save_path):
         else:
             G.add_node(block["block_id"], label="", tooltip=label)
 
-        if block["self"] in block_chain["longest_chain"]:
-            G.add_node(block["block_id"], color="green", label="", tooltip=label)
+        # if block["self"] in block_chain["longest_chain"]:
+        #     G.add_node(block["block_id"], color="green", label="", tooltip=label)
 
         if block["is_private"]:
             G.get_node(block["block_id"]).attr["shape"] = "diamond"

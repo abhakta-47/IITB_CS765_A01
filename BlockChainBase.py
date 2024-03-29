@@ -245,11 +245,11 @@ class BlockChainBase:
         self._new_transactions.append(transaction)
         if transaction.from_id == self._peer_id:
             return
-        if (
-            not self._current_mining_event
-            and len(self._new_transactions) >= CONFIG.BLOCK_TXNS_TARGET_THRESHOLD
-        ):
-            self._generate_block()
+        # if (
+        #     not self._current_mining_event
+        #     and len(self._new_transactions) >= CONFIG.BLOCK_TXNS_TARGET_THRESHOLD
+        # ):
+        #     self._generate_block()
 
     def _mine_block_start(self, block: Block):
         delay = expon_distribution(self.avg_interval_time / self.cpu_power)
