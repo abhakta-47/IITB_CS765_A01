@@ -138,6 +138,7 @@ def export_data(peers):
         create_directory(output_dir)
         copy_to_directory("blockchain_simulation.log", output_dir)
         copy_to_directory("config.py", output_dir)
+        copy_to_directory("frames", output_dir)
         change_directory(output_dir)
     clear_dir("graphs")
     with open("results.json", "w") as f:

@@ -231,10 +231,16 @@ class BlockChainBase:
             self._missing_parent_blocks.remove(block)
 
     def _panic_validate_saved_blocks(self):
-        sorted(self._missing_parent_blocks, key=lambda x: x.timestamp, reverse=True)
-        for block in self._missing_parent_blocks:
+        logger.debug("%s start panic validate orphan blocks", self._peer_id)
+        sorted_blocks = sorted(
+            self._missing_parent_blocks, key=lambda x: x.timestamp, reverse=False
+        )
+        for block in sorted_blocks:
             if self._validate_block(block):
                 self._add_block(block)
+                if self._longest_chain_length < self._branch_length(block):
+                    self._longest_chain_length = self._branch_length(block)
+                    self._longest_chain_leaf = block
 
     def add_transaction(self, transaction: Transaction) -> bool:
         """
