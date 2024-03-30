@@ -21,7 +21,7 @@ from utils import (
 )
 from visualisation import visualize
 
-import config as CONFIG
+from config import CONFIG
 
 logger = init_logger()
 START_TIME = time()
@@ -134,7 +134,7 @@ def export_data(peers):
     json_data = {"peers": json_data, "mpu_ratios": mpu_ratios}
 
     if CONFIG.SAVE_RESULTS:
-        output_dir = f"output/{START_TIME}"
+        output_dir = f"output/{CONFIG.TEST_CASE_NAME}"
         create_directory(output_dir)
         copy_to_directory("blockchain_simulation.log", output_dir)
         copy_to_directory("config.py", output_dir)
@@ -147,6 +147,9 @@ def export_data(peers):
         pickle.dump(json_data, f)
     with open("summary.json", "w") as f:
         json.dump(mpu_ratios, f, indent=4)
+    with open("config.txt", "w") as f:
+        for key, value in CONFIG.__dict__().items():
+            f.write(f"{key} = {value}\n")
     visualize(json_data)
 
 

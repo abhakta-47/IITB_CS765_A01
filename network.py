@@ -1,7 +1,7 @@
 import random
 from Peer import HonestPeer, SelfishPeer, Peer
 from Link import Link
-import config
+from config import CONFIG as config
 
 
 def is_connected(peers: list[Peer]):

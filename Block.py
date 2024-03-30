@@ -6,7 +6,7 @@ from Transaction import Transaction, CoinBaseTransaction
 import logging
 
 from DiscreteEventSim import simulation, Event, EventType
-import config
+from config import CONFIG
 from utils import expon_distribution, generate_random_id
 from visualisation import visualize_peer
 

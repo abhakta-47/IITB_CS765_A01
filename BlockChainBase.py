@@ -3,7 +3,7 @@ import logging
 
 from Block import Block, GENESIS_BLOCK
 from Transaction import Transaction, CoinBaseTransaction
-import config as CONFIG
+from config import CONFIG
 from DiscreteEventSim import simulation, Event, EventType
 from utils import expon_distribution
 from visualisation import visualize_peer

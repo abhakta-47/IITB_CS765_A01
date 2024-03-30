@@ -13,8 +13,7 @@ from BlockChainSecret import PrivateBlockChain
 from DiscreteEventSim import simulation, Event, EventType
 from Link import Link
 
-from config import INITIAL_COINS
-import config
+from config import CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +25,7 @@ class Peer:
         self.id: str = generate_random_id(3)
         self.is_slow_network: bool = is_slow_network
         self.is_slow_cpu: bool = is_slow_cpu
-        self.crypto_coins: int = INITIAL_COINS
+        self.crypto_coins: int = CONFIG.INITIAL_COINS
         self.neighbours: dict["Peer", any] = {}
         self.neighbours_meta: dict["Peer", Link] = {}
         self.cpu_power: float = cpu_power
