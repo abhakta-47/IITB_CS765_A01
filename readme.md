@@ -1,32 +1,16 @@
-# ToDos
-- [ ] basic event simulation
-- [ ] basic classes for peer, transaction, blocks
-- [ ] interactivity between classes
+# Assignment 1: Simulation of a P2P Cryptocurrency Network
 
-# Architecture
+## Course: CS765
+## Submitted By
+### Santanu Sahoo (23M0777)
+### Arnab Bhakta (23M0835)
 
-## Event Simulation
-### Class Event
-- type: str, one of given enum
-- created_at: timestamp
-- actionable_at: timestamp
-- action: fn pointer
-- payload: fn arguments
-- log_message: str
+## Instruction to run
+### Install dependencies
+1. ```bash pip install -r requirements.txt```
+2. install `pygraphviz` </br>
+    `sudo apt install pygraphviz` or </br>
+    `sudo pacman install pygraphviz`
 
-### Class Simulation
-- clock
-- event_queue: Queue<Event>
-- def enqueue(event): 
-    - add event to queue and sort by actionable_at
-    - this can trigger more enqueue detect infinite recursion
-- def dequeue():
-    - once enqueue cascade stops dequeue event take action on the event
-    - might trigger enqueue
-
-## P2P network
-### Peer/Node
-
-### Transaction
-
-### Block
+### set parameters in config.py
+### run using `python simulation.py`
