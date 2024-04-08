@@ -1,8 +1,8 @@
 class Config:
     TEST_CASE_NAME = "z1_10_z2_0"
     NUMBER_OF_PEERS = 50  # n
-    Z1 = 1.0  # zeta1
-    Z2 = 0.001  # zeta2
+    Z1 = 0.2
+    Z2 = 0.001
     AVG_TXN_INTERVAL_TIME = 100  # Ttx
 
     ## below parameters are unchanged for all the experiments
@@ -45,6 +45,3 @@ class Config:
             "MAX_NUM_BLOCKS": self.MAX_NUM_BLOCKS,
             "NUMBER_OF_TRANSACTIONS": self.NUMBER_OF_TRANSACTIONS,
         }
-
-
-CONFIG = Config()

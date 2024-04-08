@@ -1,7 +1,7 @@
 import random
+
 from Peer import HonestPeer, SelfishPeer, Peer
 from Link import Link
-from config import CONFIG as config
 
 
 def is_connected(peers: list[Peer]):
@@ -37,19 +37,19 @@ def draw_graph(peers):
     plt.show()
 
 
-def create_network(n: int) -> list[Peer]:
+def create_network(n: int, Z0, Z1, Z2) -> list[Peer]:
     is_slow_nets = [False] * n
-    for i in random.sample(list(range(n)), round(n * config.Z0)):
+    for i in random.sample(list(range(n)), round(n * Z0)):
         is_slow_nets[i] = True
-    honest_hashing_power = (1 - config.Z1 - config.Z2) / (n - 2)
+    honest_hashing_power = (1 - Z1 - Z2) / (n - 2)
     peers = [
         HonestPeer(
             id=i, is_slow_network=is_slow_nets[i], cpu_power=honest_hashing_power
         )
         for i in range(n - 2)
     ]
-    peers.append(SelfishPeer(id=n - 2, is_slow_network=False, cpu_power=config.Z1))
-    peers.append(SelfishPeer(id=n - 1, is_slow_network=False, cpu_power=config.Z2))
+    peers.append(SelfishPeer(id=n - 2, is_slow_network=False, cpu_power=Z1))
+    peers.append(SelfishPeer(id=n - 1, is_slow_network=False, cpu_power=Z2))
     peers[-2].id = "S01"
     peers[-1].id = "S02"
 

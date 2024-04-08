@@ -6,7 +6,7 @@ from time import time, strftime
 from tqdm import tqdm
 
 from logger import init_logger
-from network import is_connected, create_network, draw_graph
+from network import create_network
 from DiscreteEventSim import simulation, Event, EventType
 from Peer import Peer
 from Block import Block
@@ -20,8 +20,7 @@ from utils import (
     delete_pattern,
 )
 from visualisation import visualize
-
-from config import CONFIG
+from starter import CONFIG
 
 logger = init_logger()
 START_TIME = time()
@@ -35,7 +34,6 @@ def log_peers(peers):
     for peer in peers:
         logger.info("peer: %s", peer)
         logger.info("peer id: %s, neighbours: %s", peer.id, peer.connected_peers)
-    logger.info(is_connected(peers))
 
 
 def schedule_transactions(peers):
@@ -195,11 +193,13 @@ def update_progressbars(pbar_txns, pbar_blocks, event):
         simulation.stop_sim = True
 
 
-if __name__ == "__main__":
+def main():
 
     delete_pattern("frames/peer_*")
 
-    peers_network = create_network(CONFIG.NUMBER_OF_PEERS)
+    peers_network = create_network(
+        CONFIG.NUMBER_OF_PEERS, CONFIG.Z0, CONFIG.Z1, CONFIG.Z2
+    )
     logger.info("Network created")
     print("Network created")
     # draw_graph(peers_network)
@@ -234,3 +234,7 @@ if __name__ == "__main__":
         export_data(peers_network)
         logger.info("Data exported")
         print("Data exported")
+
+
+if __name__ == "__main__":
+    main()

@@ -13,7 +13,7 @@ from BlockChainSecret import PrivateBlockChain
 from DiscreteEventSim import simulation, Event, EventType
 from Link import Link
 
-from config import CONFIG
+from starter import CONFIG
 
 logger = logging.getLogger(__name__)
 
