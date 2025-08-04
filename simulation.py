@@ -21,7 +21,7 @@ from utils import (
 )
 from visualisation import visualize
 
-import config as CONFIG
+from config import Config
 
 logger = init_logger()
 START_TIME = time()
@@ -103,12 +103,17 @@ def calculate_mpu_ratios(peers: list[Peer]):
             mpu_adv = num_blocks_public_chain_by_peer / num_blocks_mined_by_peer
         mpu_overall = num_blocks_public_chain_by_all / num_blocks_mined_by_all
 
+        main_chain_contrib = (
+            num_blocks_public_chain_by_peer / num_blocks_public_chain_by_all
+        )
+
         return {
             "peer": peer.__repr__(),
             "peer_id": peer.id,
             "type": peer.type,
             "mpu_adv": mpu_adv,
             "mpu_overall": mpu_overall,
+            "main_chain_contrib": main_chain_contrib,
             "num_blocks_public_chain_by_peer": num_blocks_public_chain_by_peer,
             "num_blocks_public_chain_by_all": num_blocks_public_chain_by_all,
             "num_blocks_mined_by_peer": num_blocks_mined_by_peer,
@@ -121,10 +126,14 @@ def calculate_mpu_ratios(peers: list[Peer]):
     return mpu_ratios
 
 
+global summary
+
+
 def export_data(peers):
     """
     Export data to a file
     """
+    global summary
     raw_data = []
     json_data = []
     for peer in peers:
@@ -147,7 +156,21 @@ def export_data(peers):
         pickle.dump(json_data, f)
     with open("summary.json", "w") as f:
         json.dump(mpu_ratios, f, indent=4)
-    visualize(json_data)
+    # visualize(json_data)
+    contrib = {}
+    for ratio in mpu_ratios:
+        if ratio["peer_id"] == "S01":
+            contrib["S01"] = ratio["main_chain_contrib"]
+        if ratio["peer_id"] == "S02":
+            contrib["S02"] = ratio["main_chain_contrib"]
+
+    with open("summaries.csv", "w+") as f:
+        f.write(
+            f"{CONFIG.Z1}, {contrib['S01']}, {CONFIG.Z2}\n",
+        )
+        f.write(
+            f"{CONFIG.Z2}, {contrib['S02']}, {CONFIG.Z1}\n",
+        )
 
 
 def setup_progressbars():
@@ -192,7 +215,9 @@ def update_progressbars(pbar_txns, pbar_blocks, event):
         simulation.stop_sim = True
 
 
-if __name__ == "__main__":
+def main():
+
+    global peers_network, pbar_blocks, pbar_txns
 
     delete_pattern("frames/peer_*")
 
@@ -231,3 +256,22 @@ if __name__ == "__main__":
         export_data(peers_network)
         logger.info("Data exported")
         print("Data exported")
+
+
+if __name__ == "__main__":
+    global CONFIG
+    CONFIG = Config()
+    # summary = {
+    #     "selfish1": [],
+    #     "selfish2": [],
+    # }
+    # for z1 in range(0, 100, 10):
+    #     for z2 in range(0, 100, 10):
+    #         print("running for z1 %s z2 %s", z1, z2)
+    #         CONFIG = Config()
+    #         CONFIG.Z1 = z1 if z1 else 0.001
+    #         CONFIG.Z2 = z2 if z2 else 0.001
+    #         main()
+    #         # break
+    # print(summary)
+    main()

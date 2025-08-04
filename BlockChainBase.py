@@ -3,7 +3,7 @@ import logging
 
 from Block import Block, GENESIS_BLOCK
 from Transaction import Transaction, CoinBaseTransaction
-import config as CONFIG
+from simulation import CONFIG
 from DiscreteEventSim import simulation, Event, EventType
 from utils import expon_distribution
 from visualisation import visualize_peer
@@ -230,6 +230,19 @@ class BlockChainBase:
         for block in remove_blocks:
             self._missing_parent_blocks.remove(block)
 
+    def _calculate_longest_chain(self):
+        chain_lengths = {}
+        for block in self._blocks:
+            if not block.prev_block:
+                chain_lengths[block] = 1
+                continue
+            chain_lengths[block] = chain_lengths[block.prev_block] + 1
+        longest_leaf = self._blocks[0]
+        for block, chain_length in chain_lengths.items():
+            if chain_length > chain_lengths[longest_leaf]:
+                longest_leaf = block
+        return longest_leaf, chain_lengths[longest_leaf]
+
     def _panic_validate_saved_blocks(self):
         logger.debug("%s start panic validate orphan blocks", self._peer_id)
         sorted_blocks = sorted(
@@ -238,9 +251,10 @@ class BlockChainBase:
         for block in sorted_blocks:
             if self._validate_block(block):
                 self._add_block(block)
-                if self._longest_chain_length < self._branch_length(block):
-                    self._longest_chain_length = self._branch_length(block)
-                    self._longest_chain_leaf = block
+
+        self._longest_chain_leaf, self._longest_chain_length = (
+            self._calculate_longest_chain()
+        )
 
     def add_transaction(self, transaction: Transaction) -> bool:
         """

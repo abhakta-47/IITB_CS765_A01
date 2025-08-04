@@ -8,7 +8,7 @@ from time import sleep
 from tqdm import tqdm
 
 
-from config import EVENT_QUEUE_TIMEOUT
+from simulation import CONFIG
 import utils as UITLS
 
 logger = logging.getLogger(__name__)
@@ -192,3 +192,8 @@ class Simulation:
 
 
 simulation = Simulation()
+
+
+def new_simulation():
+    global simulation
+    simulation = Simulation()

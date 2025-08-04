@@ -1,7 +1,7 @@
 import random
 from Peer import HonestPeer, SelfishPeer, Peer
 from Link import Link
-import config
+from simulation import CONFIG as config
 
 
 def is_connected(peers: list[Peer]):
@@ -42,6 +42,7 @@ def create_network(n: int) -> list[Peer]:
     for i in random.sample(list(range(n)), round(n * config.Z0)):
         is_slow_nets[i] = True
     honest_hashing_power = (1 - config.Z1 - config.Z2) / (n - 2)
+    print("new network z1:%s% z2:%s%", config.Z1, config.Z2)
     peers = [
         HonestPeer(
             id=i, is_slow_network=is_slow_nets[i], cpu_power=honest_hashing_power
